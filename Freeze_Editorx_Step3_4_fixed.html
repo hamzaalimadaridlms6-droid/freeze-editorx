@@ -1,0 +1,1566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<title>Freeze Editorx — Enhanced</title>
+<style>
+:root {
+  --bg: #f6f9ff; --card: #ffffff; --text: #17233d; --muted: #71809b; --line: #dce7f8; --blue: #1677ff; --soft: #edf5ff;
+}
+[data-theme=dark] {
+  --bg: #0c1220; --card: #141e31; --text: #eef4ff; --muted: #a0aec7; --line: #2a3955; --blue: #68a5ff; --soft: #1a2a45;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg);
+  color: var(--text); font: 15px/1.45 system-ui, -apple-system, sans-serif; overflow-x: hidden; touch-action: manipulation;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes floatBot { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes softPop { from { opacity:.65; transform:translateY(5px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+button,.drop,.file,.card,.icon { transition: transform .18s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease; }
+button:hover:not(:disabled) { transform:translateY(-1px); }
+.pick:hover,.secondary:hover,.icon:hover { border-color:var(--blue); box-shadow:0 5px 16px rgba(22,119,255,.10); }
+.drop:hover { border-color:var(--blue); box-shadow:inset 0 0 0 1px rgba(22,119,255,.10); }
+.card:hover { box-shadow:0 18px 48px rgba(0,0,0,.065); }
+button:focus-visible,.drop:focus-within { outline:3px solid rgba(22,119,255,.28); outline-offset:2px; }
+.caption-word-group { animation:softPop .12s ease-out; }
+
+header {
+  height: 68px; padding: 0 4vw; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--line); background: var(--card); position: relative; z-index: 50;
+}
+.brand { font-size: 21px; font-weight: 800; }
+.blue { color: var(--blue); }
+.actions { display: flex; gap: 9px; align-items: center; }
+.icon {
+  border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 50%;
+  width: 44px; height: 44px; font-size: 19px; cursor: pointer; display: grid; place-items: center; touch-action: manipulation;
+}
+.icon:active { transform: scale(0.92); }
+
+.wrap { width: min(1080px, calc(100% - 24px)); margin: 18px auto 40px; }
+.hero { text-align: center; padding: 10px 0 20px; animation: fadeIn 0.4s ease-out; }
+.bot { font-size: 64px; display: inline-block; animation: floatBot 3.5s ease-in-out infinite; }
+h1 { font-size: clamp(28px, 6vw, 48px); letter-spacing: -1.5px; margin: 0; }
+.hero p { color: var(--muted); margin: 6px 0; font-size: 14px; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 21px; padding: 22px;
+  box-shadow: 0 15px 45px rgba(0,0,0,0.04); margin-bottom: 18px; animation: fadeIn 0.5s ease-out;
+}
+.card h2 { font-size: 18px; margin: 0 0 5px; }
+.sub { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+
+.drop {
+  position: relative; border: 1.5px dashed #9dc7ff; border-radius: 16px; background: var(--soft);
+  min-height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  gap: 10px; text-align: center; padding: 20px; cursor: pointer; overflow: hidden; touch-action: manipulation;
+}
+.drop input[type=file] {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 30;
+}
+.drop .cloud { font-size: 32px; color: var(--blue); }
+
+button { font: inherit; touch-action: manipulation; }
+.pick, .secondary {
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 10px 18px;
+  color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center; z-index: 5; position: relative;
+}
+
+.files { display: grid; gap: 10px; margin-top: 12px; }
+.file { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--card); position: relative; z-index: 40; }
+.preview { width: 60px; height: 46px; flex: none; object-fit: cover; border-radius: 8px; background: var(--soft); }
+.meta { min-width: 0; flex: 1; }
+.name { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.info { font-size: 11px; color: var(--muted); }
+.remove { border: 0; background: transparent; color: var(--muted); font-size: 24px; padding: 6px 12px; cursor: pointer; min-height: 44px; min-width: 44px; z-index: 45; position: relative; }
+.remove:active { color: #ff4d4f; }
+
+.transcript {
+  width: 100%; min-height: 100px; resize: vertical; background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 14px; padding: 14px; font: inherit; font-size: 14px; position: relative; z-index: 20;
+}
+.transcript:focus { outline: none; border-color: var(--blue); }
+
+.togglebox {
+  display: flex; align-items: center; justify-content: space-between; gap: 15px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+}
+.hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.switch { width: 52px; height: 30px; position: relative; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; border-radius: 20px; background: #aab5c5; cursor: pointer; transition: 0.25s ease; }
+.slider:before {
+  content: ""; position: absolute; width: 22px; height: 22px; left: 4px; top: 4px;
+  background: white; border-radius: 50%; transition: transform .22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.switch input:checked + .slider { background: var(--blue); }
+.switch input:checked + .slider:before { transform: translateX(22px); }
+
+.status { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0 18px; }
+.primary {
+  display: flex; align-items: center; justify-content: center; margin: auto; width: min(100%, 360px); min-height: 52px;
+  border: 0; border-radius: 999px; padding: 12px 24px; color: #fff; background: linear-gradient(100deg, #3ca4ff, #1558ee);
+  font-weight: 700; font-size: 15px; box-shadow: 0 9px 22px rgba(0,0,0,0.1); cursor: pointer;
+}
+.primary:active:not(:disabled) { transform: scale(0.98); }
+.primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 24px; letter-spacing: 1px; }
+
+.menuWrap { position: relative; }
+.menu {
+  display: none; position: absolute; right: 0; top: 50px; z-index: 100; width: 210px;
+  padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+.menu.open { display: block; animation: fadeIn 0.15s ease-out; }
+.menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 12px; font-size: 14px; border-radius: 9px; cursor: pointer; min-height: 44px; }
+.menu button:active { background: var(--soft); }
+
+.modal {
+  display: none; position: fixed; inset: 0; background: rgba(7, 20, 43, 0.6); backdrop-filter: blur(4px);
+  z-index: 200; align-items: center; justify-content: center; padding: 14px; animation: fadeIn 0.2s ease-out;
+}
+.modal.open { display: flex; }
+.dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 20px; padding: 24px; width: min(540px, 100%); max-height: 88vh; overflow-y: auto; box-shadow: 0 25px 70px rgba(0,0,0,0.3); }
+.dialog h3 { margin: 0 0 10px; font-size: 18px; }
+.dialog p, .dialog li { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.dialogfoot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 18px; }
+
+.passages-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+.passages-table th, .passages-table td { padding: 9px 10px; border: 1px solid var(--line); text-align: left; }
+.passages-table th { background: var(--soft); font-weight: 600; }
+.passages-table tr { cursor: pointer; transition: background 0.2s ease; }
+.passages-table tr:hover { background: var(--soft); }
+.passages-table tr.selected { background: var(--soft); font-weight: bold; border-left: 4px solid var(--blue); }
+
+.studio-box { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 14px; }
+.canvas-preview-container {
+  position: relative; width: min(250px, 70vw); height: min(444px, 120vw); background: #000; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.4); border: 1px solid var(--line);
+}
+#renderCanvas { width: 100%; height: 100%; object-fit: contain; cursor: pointer; touch-action: manipulation; }
+.studio-controls-row { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.studio-controls-row input[type=range] { width: 85px; accent-color: var(--blue); }
+.timing-editor { margin: 10px 0; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.timing-cue-list { max-height: 360px; overflow: auto; margin-top: 8px; }
+.timing-cue-row { display: grid; grid-template-columns: 32px minmax(90px,1fr) 110px 110px auto; gap: 6px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.timing-cue-row label { font-size: 11px; color: var(--muted); }
+.timing-cue-row input { display: block; width: 100%; min-width: 0; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--text); }
+.timing-cue-index { font-size: 11px; color: var(--muted); text-align: right; }
+.progress-bar-wrap { width: 100%; background: var(--soft); height: 10px; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #3ca4ff, #1558ee); width: 0%; transition: width 0.1s linear; }
+.notice { background: var(--soft); padding: 12px; border-radius: 12px; color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+/* Responsive and low-memory device tuning */
+@media (max-width: 700px) {
+  .timing-cue-row { grid-template-columns: 24px minmax(80px,1fr) 82px 82px auto; gap: 4px; }
+  header { height: 58px; padding: 0 12px; }
+  .brand { font-size: 18px; }
+  .wrap { width: min(100% - 20px, 560px); margin: 12px auto 28px; }
+  .hero { padding: 8px 0 14px; }
+  .bot { font-size: 48px; }
+  .card { padding: 16px; border-radius: 16px; margin-bottom: 12px; }
+  .drop { min-height: 112px; padding: 14px; }
+  .togglebox { padding: 14px; margin-top: 12px; }
+  .dialog { padding: 16px; max-height: 92dvh; border-radius: 16px; }
+  .modal { padding: 8px; align-items: flex-end; }
+  .passages-table { font-size: 11px; }
+  .passages-table th, .passages-table td { padding: 8px 5px; }
+  .studio-controls-row { justify-content: flex-start; gap: 8px; }
+  .studio-controls-row input[type=range] { width: min(30vw, 110px); }
+  .canvas-preview-container { width: min(64vw, 250px); height: auto; aspect-ratio: 9 / 16; }
+  .dialogfoot { justify-content: stretch; }
+  .dialogfoot button { flex: 1 1 100%; }
+  .primary { min-height: 50px; }
+  .transcript { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .passages-table th:nth-child(3), .passages-table td:nth-child(3) { display:none; }
+  .brand { font-size: 16px; }
+  .icon { width: 40px; height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media (hover: none) { .passages-table tr:hover { background: transparent; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">❄ Freeze <span class="blue">Editorx</span></div>
+  <div class="actions">
+    <div class="menuWrap" id="menuWrap">
+      <button class="icon" id="menuBtn" aria-label="Menu">⋯</button>
+      <div class="menu" id="menu">
+        <button data-page="projects">▣ &nbsp; Your Projects</button>
+        <button data-page="data">▤ &nbsp; Your Data</button>
+        <button data-page="privacy">♧ &nbsp; Privacy Policy</button>
+        <button data-page="terms">▤ &nbsp; Terms of Use</button>
+        <button data-page="settings">⚙ &nbsp; Settings</button>
+      </div>
+    </div>
+    <button class="icon" id="soundBtn" aria-label="Toggle sound effects" title="Sound effects">🔊</button>
+    <button class="icon" id="themeBtn" aria-label="Theme">☾</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="bot">🤖</div>
+    <h1>Freeze <span class="blue">Editorx</span></h1>
+    <p>Your intelligent video editing studio.</p>
+  </section>
+
+  <section class="card">
+    <h2>Select Videos</h2>
+  <p class="sub">Choose 2–12 background videos.</p>
+    <div class="drop" id="videoDrop">
+      <div class="cloud">⇧</div>
+      <strong>Tap to select videos</strong>
+      <button class="pick" type="button">＋ Choose videos</button>
+      <input id="videoInput" type="file" accept="video/*" multiple>
+    </div>
+    <div class="files" id="videoFiles"></div>
+  </section>
+
+  <section class="card audio">
+    <h2>Audio <span class="blue">· required</span></h2>
+    <p class="sub">Choose one soundtrack.</p>
+    <div class="drop" id="audioDrop">
+      <div class="cloud">♫</div>
+      <strong>Tap to select audio</strong>
+      <button class="pick" type="button">♫ Choose audio</button>
+      <input id="audioInput" type="file" accept="audio/*">
+    </div>
+    <div class="files" id="audioFiles"></div>
+
+    <div style="margin-top:18px">
+      <h2>Transcript / Lyrics <span class="blue">· optional</span></h2>
+      <div class="drop" id="lyricsDrop" style="min-height:90px; margin-bottom:10px;">
+        <strong>Tap to select SRT / VTT / TXT file</strong>
+        <button class="pick" type="button">＋ Choose transcript</button>
+        <input id="lyricsInput" type="file" accept=".txt,.srt,.vtt,.lrc,text/plain">
+      </div>
+      <div class="files" id="lyricsFiles"></div>
+      <textarea class="transcript" id="lyricsText" placeholder="Paste transcript or naat lyrics here..."></textarea>
+      <div class="hint" id="captionStatus" style="margin-top:6px;">Paste lyrics or upload TXT, SRT, VTT or LRC. Captions display three words at a time.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <label class="hint" for="transcriptionLanguage">Recognition language</label>
+        <select id="transcriptionLanguage" aria-label="Transcription language" style="padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);">
+          <option value="auto">Auto-detect</option><option value="urdu">Urdu (forced)</option><option value="arabic">Arabic (forced)</option><option value="hindi">Hindi (forced)</option><option value="english">English (forced)</option>
+        </select>
+        <label class="hint" for="transcriptionModel">Whisper model</label>
+        <select id="transcriptionModel" aria-label="Whisper model" style="padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);">
+          <option value="auto">Auto (device-aware)</option><option value="Xenova/whisper-tiny">Tiny · lightest</option><option value="Xenova/whisper-base">Base</option><option value="Xenova/whisper-small">Small · more demanding</option>
+        </select>
+        <label class="hint" for="romanizationToggle" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;"><input id="romanizationToggle" type="checkbox" checked> Romanisation (output script) <span class="blue">ON</span></label>
+        <button class="secondary" type="button" id="aiTranscribeBtn">✦ AI transcribe locally</button>
+        <button class="secondary" type="button" id="alignLyricsBtn" hidden>Align supplied lyrics to audio</button>
+        <button class="secondary" type="button" id="useAiTranscriptBtn" hidden>Use AI transcript</button>
+        <button class="secondary" type="button" id="cancelTranscribeBtn" disabled>Cancel</button>
+      </div>
+      <div class="hint" id="aiStatus" role="status" aria-live="polite" style="margin-top:7px;">Auto asks Whisper to choose a language; the current pipeline does not report its detected language separately. Urdu, Hindi, Arabic and English force the selected recognition language. Romanisation changes output script only. Singing, music and mixed-language recordings can still reduce accuracy, so review every word.</div>
+      <details id="transcriptionDiagnostics" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);">
+        <summary style="cursor:pointer;font-weight:650;">Advanced · original Whisper transcript and diagnostics</summary>
+        <div id="transcriptionDiagnosticMeta" class="hint" style="margin:8px 0;">No AI transcription has been run in this session yet.</div>
+        <label class="hint" for="rawTranscriptionText">Unmodified text returned by Whisper (before Romanisation and vocabulary correction)</label>
+        <textarea id="rawTranscriptionText" class="transcript" readonly rows="6" style="width:100%;margin-top:5px;" placeholder="The original model output will appear here after transcription."></textarea>
+        <details id="chunkDiagnosticsDisclosure" style="margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:8px;">
+          <summary style="cursor:pointer;font-weight:600;">Individual Whisper chunk outputs</summary>
+          <p class="hint" style="margin:7px 0;">Each entry shows the exact raw text returned for that audio segment, before chunk merging, Romanisation or vocabulary correction. Repetition statistics help locate where errors begin.</p>
+          <div id="chunkTranscriptionDiagnostics" style="display:grid;gap:7px;"><p class="hint">Chunk details will appear after the next transcription.</p></div>
+        </details>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;">
+          <button class="secondary" type="button" id="copyTranscriptionDiagnostics">Copy diagnostic report</button>
+          <span class="hint" id="copyTranscriptionDiagnosticsStatus" aria-live="polite"></span>
+        </div>
+      </details>
+      <div class="progress-bar-wrap" id="transcriptionProgressWrap" hidden><div class="progress-bar-fill" id="transcriptionProgress" style="width:0%"></div></div>
+      <div class="notice">Privacy: the selected multilingual Whisper model is downloaded from Hugging Face/CDN and cached by the browser. The worker keeps the loaded model in memory while this page remains open, so another transcription in this session can reuse it. Your audio is processed locally; it is not uploaded to a transcription API. Internet is required for the first model download. Keep freeze-transcription-worker.js beside this HTML and open the project through localhost or HTTPS; direct file:// opening cannot load the worker reliably.</div>
+    </div>
+  </section>
+
+  <div class="togglebox">
+    <div>
+      <strong>✦ Auto-select strongest passage</strong>
+    <div class="hint" id="smartHint">Uses basic audio loudness, not AI recitation understanding. Unlocks with 8–12 videos and audio ≥ 1 min.</div>
+    </div>
+    <label class="switch">
+      <input id="smartToggle" type="checkbox" disabled>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status" id="status">Upload at least 2 videos to create three ranked previews.</div>
+  <button class="primary" id="continueBtn" disabled>Continue to Studio →</button>
+  <div class="footer">EDIT ✦ CREATE ✦ INSPIRE</div>
+</main>
+
+<div class="modal" id="modal">
+  <div class="dialog">
+    <h3 id="modalTitle">Notice</h3>
+    <div id="modalBody"></div>
+    <div class="dialogfoot" id="modalButtons"></div>
+  </div>
+</div>
+
+<div class="modal" id="firstRun">
+  <div class="dialog">
+    <h3 id="firstTitle">Privacy First</h3>
+    <div id="firstBody"></div>
+    <div class="dialogfoot" id="firstActions"></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id), s={videos:[],audio:null,lyricsFile:null,smart:false,parsedCaptions:[],captionsAreTimed:false,timingTemplate:null,selectedPassage:null,rankCandidates:[],rankVideoGroups:[],activeRank:0,lastTranscriptionDiagnostics:null,lastAsrWordCues:[],pendingAiTranscript:null};
+const PREF_KEY='freeze-prefs-v1', CONSENT_KEY='freeze-consent-v1', PROJECTS_KEY='freeze-projects-v1', MODEL_KEY='freeze-asr-model-v1';
+const volatileStorage=new Map();
+const storageGet=key=>{if(volatileStorage.has(key))return volatileStorage.get(key);try{return localStorage.getItem(key)}catch{return null}};
+const storageSet=(key,value)=>{try{localStorage.setItem(key,value);volatileStorage.delete(key);return true}catch{volatileStorage.set(key,String(value));return false}};
+const storageRemove=key=>{try{localStorage.removeItem(key)}catch{}volatileStorage.delete(key)};
+
+let prefs={method:'auto',resolution:'1080p',fps:'30',bitrate:28,theme:'light',soundEffects:true,captionFont:'arabic',captionScale:0.073,captionPosition:0.52,captionColor:'#ffffff',captionHighlight:true,captionHighlightColor:'#ffd166',captionAnimation:'fade',captionOutline:true,captionShadow:true,captionSpacing:0};
+try{const savedPrefs=JSON.parse(storageGet(PREF_KEY)||'{}');prefs={...prefs,...savedPrefs};if(!savedPrefs.qualityProfileVersion){prefs.qualityProfileVersion=3;storageSet(PREF_KEY,JSON.stringify(prefs));}}catch{}
+if(!['auto','recording','render'].includes(prefs.method))prefs.method='auto';
+if(!['720p','1080p'].includes(prefs.resolution))prefs.resolution='1080p';
+if(!['30','60'].includes(String(prefs.fps)))prefs.fps='30';
+prefs.bitrate=Math.max(4,Math.min(40,Number(prefs.bitrate)||28));
+if(!['light','dark'].includes(prefs.theme))prefs.theme='light';
+if(!['arabic','sans','serif'].includes(prefs.captionFont))prefs.captionFont='arabic';
+prefs.captionScale=Math.max(.038,Math.min(.095,Number(prefs.captionScale)||.073));
+prefs.captionPosition=Math.max(.16,Math.min(.84,Number(prefs.captionPosition)||.52));
+if(!/^#[0-9a-f]{6}$/i.test(String(prefs.captionColor)))prefs.captionColor='#ffffff';
+if(!/^#[0-9a-f]{6}$/i.test(String(prefs.captionHighlightColor)))prefs.captionHighlightColor='#ffd166';
+if(!['none','fade','pop'].includes(prefs.captionAnimation))prefs.captionAnimation='fade';
+prefs.captionSpacing=Math.max(0,Math.min(28,Number(prefs.captionSpacing)||0));
+prefs.captionHighlight=!!prefs.captionHighlight;prefs.captionOutline=!!prefs.captionOutline;prefs.captionShadow=!!prefs.captionShadow;
+
+function deviceProfile(){
+  const memory=Number(navigator.deviceMemory)||4;
+  const cores=Number(navigator.hardwareConcurrency)||4;
+  const mobile=(typeof matchMedia==='function'&&matchMedia('(max-width: 700px)').matches) || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+  const slowNet=!!(conn&&(conn.saveData||/slow-2g|2g|3g/.test(conn.effectiveType||'')));
+  const tier=memory<=4||cores<=4?'4GB':memory<=6?'6GB':'8GB+';
+  return {memory,cores,mobile,slowNet,tier};
+}
+const DEVICE=deviceProfile();
+let needsDeviceProfile=!storageGet(PREF_KEY+'_profile');
+if(needsDeviceProfile){
+  if(DEVICE.memory<=4){prefs.resolution='1080p';prefs.fps='30';prefs.bitrate=12;}
+  else if(DEVICE.memory<=6){prefs.resolution='1080p';prefs.fps='30';prefs.bitrate=18;}
+  else {prefs.resolution='1080p';prefs.fps='30';prefs.bitrate=24;}
+  storageSet(PREF_KEY,JSON.stringify(prefs));storageSet(PREF_KEY+'_profile','1');
+}
+if(prefs.theme==='dark'){
+  document.documentElement.dataset.theme='dark';
+  $('themeBtn').textContent='☀';
+} else {
+  document.documentElement.dataset.theme='light';
+  $('themeBtn').textContent='☾';
+}
+
+function esc(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function size(n){return n<1024?`${n} B`:n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB'}
+function fmt(d){return Number.isFinite(Number(d))&&Number(d)>=0?`${Math.floor(Number(d)/60)}:${String(Math.floor(Number(d)%60)).padStart(2,'0')}`:'0:00'}
+
+function captionTime(value){
+  const raw=String(value||'').trim().replace(',', '.').split(/\s+/)[0];
+  const parts=raw.split(':');
+  if(parts.length===2){const sec=Number(parts[1]);const min=Number(parts[0]);return Number.isFinite(min)&&Number.isFinite(sec)&&min>=0&&sec>=0&&sec<60?min*60+sec:NaN;}
+  if(parts.length===3){const hour=Number(parts[0]),min=Number(parts[1]),sec=Number(parts[2]);return Number.isFinite(hour)&&Number.isFinite(min)&&Number.isFinite(sec)&&hour>=0&&min>=0&&min<60&&sec>=0&&sec<60?hour*3600+min*60+sec:NaN;}
+  return NaN;
+}
+function decodeCaptionEntities(value){const el=document.createElement('textarea');el.innerHTML=String(value||'');return el.value;}
+function parseTimedCaptions(text){
+  const raw=String(text||'').replace(/^\uFEFF/,'').replace(/\r/g,'').trim();if(!raw)return [];
+  const lines=raw.split('\n'),out=[];
+  const timingPattern=/^((?:\d{1,2}:)?\d{2}:\d{2}(?:[.,]\d{1,3})?)\s*(?:-->|-)\s*((?:\d{1,2}:)?\d{2}:\d{2}(?:[.,]\d{1,3})?)(?:\s+.*)?$/;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim(),match=line.match(timingPattern);if(!match)continue;
+    const start=captionTime(match[1]),end=captionTime(match[2]);
+    const body=[];
+    for(let j=i+1;j<lines.length&&lines[j].trim();j++){
+      const value=lines[j].trim();
+      if(timingPattern.test(value)||/^NOTE\b/i.test(value))break;
+      body.push(value);
+    }
+    const caption=decodeCaptionEntities(body.join(' ').replace(/<[^>]*>/g,'').trim());
+    if(Number.isFinite(start)&&Number.isFinite(end)&&end>start&&caption)out.push({start,end,text:caption});
+  }
+  return out.sort((a,b)=>a.start-b.start);
+}
+function transcriptLineBreakOffsets(text){
+  const timed=parseTimedCaptions(text);
+  const lrc=timed.length?[]:parseLrcCaptions(text,Infinity);
+  const groups=timed.length?timed.map(c=>c.text):lrc.length?lrc.map(c=>c.text):String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/);
+  const offsets=[];let wordIndex=0;
+  for(const group of groups){const count=String(group||'').trim().split(/\s+/u).filter(Boolean).length;if(count&&wordIndex)offsets.push(wordIndex);wordIndex+=count;}
+  return offsets;
+}
+function formatTranscriptWords(words,lineBreakOffsets=[]){
+  const breaks=new Set(lineBreakOffsets);let value='';(words||[]).map(w=>String(w||'').trim()).filter(Boolean).forEach((word,index)=>{if(value)value+=breaks.has(index)?'\n':' ';value+=word;});return value;
+}
+function applyTranscriptLineBreaks(cues,lineBreakOffsets=[]){
+  const breaks=new Set(lineBreakOffsets),words=makeWordCues(Array.isArray(cues)?cues:[]);let index=0;
+  return words.map(c=>({...c,lineBreakBefore:breaks.has(index++)}));
+}
+function formatTranscriptCues(cues){
+  let value='';for(const cue of Array.isArray(cues)?cues:[]){const words=String(cue?.text||'').trim().split(/\s+/u).filter(Boolean);words.forEach((word,index)=>{if(value)value+=index===0&&cue.lineBreakBefore?'\n':' ';value+=word;});}return value;
+}
+function removeTimingCuePreservingBreak(cues,index){
+  if(!Array.isArray(cues)||!Number.isInteger(index)||index<0||index>=cues.length)return cues;
+  const removed=cues.splice(index,1)[0];if(removed?.lineBreakBefore&&cues[index])cues[index].lineBreakBefore=true;return cues;
+}
+function parseLrcCaptions(text,duration){
+  const out=[];for(const line of String(text||'').split(/\r?\n/)){
+    const matches=[...line.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+    const caption=line.replace(/\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g,'').trim();
+    if(!caption)continue;for(const m of matches){const seconds=Number(m[2]),fraction=m[3]?Number('0.'+m[3]):0,start=Number(m[1])*60+seconds+fraction;if(seconds<60&&Number.isFinite(start)&&(!Number.isFinite(duration)||duration<=0||start<duration))out.push({start,end:start+3,text:caption});}
+  }
+  out.sort((a,b)=>a.start-b.start);const valid=[];for(let i=0;i<out.length;i++){const next=out.slice(i+1).find(c=>c.start>out[i].start);const naturalEnd=next?next.start:out[i].start+4;const cap=Number.isFinite(duration)&&duration>0?duration:Infinity;const end=Math.min(cap,naturalEnd);if(end>out[i].start)valid.push({...out[i],end});}
+  return valid;
+}
+function captionsFromPlainText(text,duration,startOffset=0){
+  const source=String(text||'').split(/\r?\n+/).map(x=>x.trim()).filter(Boolean);if(!source.length)return [];
+  const phrases=[];
+  for(const line of source){
+    const sentences=line.split(/(?<=[.!?؟۔،,;:])\s+/u).filter(Boolean);
+    for(const sentence of sentences){
+      const words=sentence.trim().split(/\s+/).filter(Boolean);
+      for(let i=0;i<words.length;i+=3)phrases.push(words.slice(i,i+3).join(' '));
+    }
+  }
+  if(!phrases.length)return [];
+  const total=Math.max(1,Number(duration)||60),offset=Math.max(0,Number(startOffset)||0);
+  const weights=phrases.map(p=>Math.max(1,p.split(/\s+/).length)),sum=weights.reduce((a,b)=>a+b,0);
+  let cursor=offset;
+  return phrases.map((text,i)=>{const span=total*weights[i]/sum,start=cursor;cursor+=span;return {start,end:offset+Math.min(total,cursor-offset),text};}).filter(c=>c.end>c.start);
+}
+function captionsForText(text,duration,startOffset=0){
+  const timed=parseTimedCaptions(text);if(timed.length)return timed;
+  const lrc=parseLrcCaptions(text,duration);if(lrc.length)return lrc;
+  return captionsFromPlainText(text,duration,startOffset);
+}
+function makeWordCues(segments){
+  const out=[];
+  for(const seg of segments||[]){
+    const words=String(seg.text||'').trim().split(/\s+/).filter(Boolean);
+    if(!words.length||!(seg.end>seg.start))continue;
+    const weights=words.map(captionWordWeight),sum=weights.reduce((a,b)=>a+b,0);
+    let t=seg.start;
+    words.forEach((word,i)=>{const end=i===words.length-1?seg.end:t+(seg.end-seg.start)*weights[i]/sum;out.push({start:t,end,text:word});t=end;});
+  }
+  return out;
+}
+const captionGraphemeSegmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter(undefined,{granularity:'grapheme'}):null;
+function captionWordWeight(word){
+  const value=String(word||'').replace(/[\u200C\u200D]/gu,'');
+  return Math.max(1,captionGraphemeSegmenter?[...captionGraphemeSegmenter.segment(value)].length:Array.from(value.normalize('NFD').replace(/\p{M}/gu,'')).length);
+}
+function normalizedAlignWord(word){
+  return String(word||'').normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase().replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي').replace(/[^\p{L}\p{N}]/gu,'');
+}
+function compareTranscriptWords(referenceText,candidateText){
+  const ref=String(referenceText||'').split(/\s+/u).map(normalizedAlignWord).filter(Boolean),cand=String(candidateText||'').split(/\s+/u).map(normalizedAlignWord).filter(Boolean);
+  if(!ref.length)return {referenceWords:0,candidateWords:cand.length,edits:null,wer:null};
+  let previous=Uint32Array.from({length:cand.length+1},(_,i)=>i);
+  for(let i=1;i<=ref.length;i++){const current=new Uint32Array(cand.length+1);current[0]=i;for(let j=1;j<=cand.length;j++)current[j]=Math.min(previous[j]+1,current[j-1]+1,previous[j-1]+(ref[i-1]===cand[j-1]?0:1));previous=current;}
+  return {referenceWords:ref.length,candidateWords:cand.length,edits:previous[cand.length],wer:previous[cand.length]/ref.length};
+}
+function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
+  const ref=String(referenceText||'').trim().split(/\s+/u).filter(Boolean);
+  const observed=(Array.isArray(asrWordCues)?asrWordCues:[]).filter(c=>Number.isFinite(Number(c.start))&&Number.isFinite(Number(c.end))&&Number(c.end)>Number(c.start)&&String(c.text||'').trim()).sort((a,b)=>Number(a.start)-Number(b.start)||Number(a.end)-Number(b.end));
+  if(!ref.length||!observed.length)throw new Error('Add lyrics and run transcription with usable word timestamps before alignment.');
+  if(ref.length*observed.length>1800000)throw new Error('This text is too long for the local alignment pass. Split the lyrics into smaller sections.');
+  const a=ref.map(normalizedAlignWord),b=observed.map(c=>normalizedAlignWord(c.text)),cols=b.length+1;
+  const cost=new Uint32Array((a.length+1)*cols),back=new Uint8Array(cost.length);
+  for(let i=1;i<=a.length;i++){cost[i*cols]=i;back[i*cols]=2;}
+  for(let j=1;j<=b.length;j++){cost[j]=j;back[j]=3;}
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++){
+    const k=i*cols+j,diag=cost[(i-1)*cols+j-1]+(a[i-1]&&a[i-1]===b[j-1]?0:3),del=cost[(i-1)*cols+j]+1,ins=cost[i*cols+j-1]+1;
+    if(diag<=del&&diag<=ins){cost[k]=diag;back[k]=1;}else if(del<=ins){cost[k]=del;back[k]=2;}else{cost[k]=ins;back[k]=3;}
+  }
+  const anchor=new Array(a.length).fill(null);let i=a.length,j=b.length,matched=0;
+  while(i>0||j>0){const op=back[i*cols+j];if(i>0&&j>0&&op===1){if(a[i-1]&&a[i-1]===b[j-1]){anchor[i-1]=observed[j-1];matched++;}i--;j--;}else if(i>0&&(j===0||op===2))i--;else if(j>0)j--;else break;}
+  const limit=Number.isFinite(Number(duration))&&Number(duration)>0?Number(duration):Math.max(...observed.map(c=>Number(c.end)));
+  const out=new Array(ref.length);let lastEnd=0;
+  for(let k=0;k<ref.length;){
+    if(anchor[k]){const source=anchor[k],start=Math.min(limit,Math.max(lastEnd,Math.max(0,Number(source.start)))),end=Math.min(limit,Math.max(start+.04,Number(source.end)));out[k]={start,end,text:ref[k],anchor:true};lastEnd=end;k++;continue;}
+    const runStart=k;while(k<ref.length&&!anchor[k])k++;const runEnd=k,previous=runStart?out[runStart-1]:null,next=anchor[runEnd]||null;
+    let start=previous?previous.end:0,end=next?Math.max(start,next.start):limit;
+    if(end-start<(runEnd-runStart)*.045){end=Math.min(limit,start+(runEnd-runStart)*.12);}
+    const weights=ref.slice(runStart,runEnd).map(w=>Math.max(1,[...w].length)),sum=weights.reduce((x,y)=>x+y,0);let cursor=start;
+    for(let x=runStart;x<runEnd;x++){const nextTime=x===runEnd-1?end:cursor+(end-start)*weights[x-runStart]/sum;out[x]={start:Math.min(limit,cursor),end:Math.min(limit,Math.max(cursor+.035,nextTime)),text:ref[x],anchor:false};cursor=out[x].end;}
+    lastEnd=out[runEnd-1]?.end||lastEnd;
+  }
+  return {cues:out.filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start),matchedWords:matched,totalWords:ref.length,coverage:matched/Math.max(1,ref.length)};
+}
+function normalizeCaptionCues(cues,duration=Infinity){
+  const max=Number.isFinite(Number(duration))&&Number(duration)>0?Number(duration):Infinity;
+  return (Array.isArray(cues)?cues:[]).map(c=>({start:Number(c.start),end:Number(c.end),text:String(c.text||'').trim()}))
+    .filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start&&c.start>=0&&c.start<max&&c.text)
+    .map(c=>({...c,end:Math.min(c.end,max)})).filter(c=>c.end>c.start).sort((a,b)=>a.start-b.start||a.end-b.end);
+}
+function captionWordCount(cues){return (Array.isArray(cues)?cues:[]).reduce((sum,c)=>sum+(String(c?.text||'').match(/[\p{L}\p{N}]+/gu)||[]).length,0);}
+const displayCaptionCache=new WeakMap();
+function displayWordCues(cues){
+  if(!Array.isArray(cues)||!cues.length)return [];
+  const key=cues.map(c=>`${c.start}\u0000${c.end}\u0000${c.text}`).join('\u0001'),cached=displayCaptionCache.get(cues);
+  if(cached&&cached.key===key)return cached.value;
+  const value=makeWordCues(normalizeCaptionCues(cues));displayCaptionCache.set(cues,{key,value});return value;
+}
+function activeCaptionGroup(cues,sourceTime){
+  let ordered=Array.isArray(cues)?cues:[];for(let i=1;i<ordered.length;i++){if(ordered[i].start<ordered[i-1].start){ordered=normalizeCaptionCues(ordered);break;}}
+  const activeIndex=ordered.findIndex(c=>sourceTime>=c.start&&sourceTime<c.end);if(activeIndex<0)return [];
+  return ordered.slice(Math.floor(activeIndex/3)*3,Math.floor(activeIndex/3)*3+3);
+}
+function formatCaptionClock(seconds,decimal=','){
+  const ms=Math.max(0,Math.round(Number(seconds)*1000)),hours=Math.floor(ms/3600000),minutes=Math.floor(ms/60000)%60,secs=Math.floor(ms/1000)%60,millis=ms%1000;
+  return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(secs).padStart(2,'0')}${decimal}${String(millis).padStart(3,'0')}`;
+}
+function serializeCaptions(cues,format,duration=Infinity){
+  const valid=normalizeCaptionCues(cues,duration).filter(c=>Math.round(c.end*1000)>Math.round(c.start*1000));if(!valid.length)throw new Error('There are no valid caption cues to export.');
+  if(format==='txt')return valid.map(c=>c.text).join(' ');
+  if(format==='lrc'){
+    const rows=[];for(let i=0;i<valid.length;i+=3){const c=valid[i],totalCentiseconds=Math.round(c.start*100),mins=Math.floor(totalCentiseconds/6000),seconds=(totalCentiseconds%6000/100).toFixed(2);rows.push(`[${String(mins).padStart(2,'0')}:${seconds.padStart(5,'0')}]${valid.slice(i,i+3).map(x=>x.text).join(' ')}`);}return rows.join('\n');
+  }
+  if(format==='vtt')return 'WEBVTT\n\n'+valid.map((c,i)=>`${i+1}\n${formatCaptionClock(c.start,'.')} --> ${formatCaptionClock(c.end,'.')}\n${c.text}`).join('\n\n')+'\n';
+  if(format==='srt')return valid.map((c,i)=>`${i+1}\n${formatCaptionClock(c.start)} --> ${formatCaptionClock(c.end)}\n${c.text}`).join('\n\n')+'\n';
+  throw new Error('Choose SRT, VTT, LRC or TXT.');
+}
+function downloadCaptions(format){
+  try{const text=serializeCaptions(s.parsedCaptions,format,s.audio?.duration);const mime={srt:'application/x-subrip;charset=utf-8',vtt:'text/vtt;charset=utf-8',lrc:'text/plain;charset=utf-8',txt:'text/plain;charset=utf-8'}[format];const blob=new Blob(['\uFEFF',text],{type:mime});const url=URL.createObjectURL(blob),a=document.createElement('a');const base=(s.audio?.file?.name||'Freeze_Editorx').replace(/\.[^.]+$/,'');a.href=url;a.download=`${base}_captions.${format}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);$('studioAiStatus').textContent=`Downloaded ${format.toUpperCase()} captions (${normalizeCaptionCues(s.parsedCaptions,s.audio?.duration).length} cues).`;}catch(e){show('Subtitle export failed',esc(e.message||String(e)));}
+}
+function renderTimingEditor(){
+  const host=$('timingCueRows');if(!host)return;
+  const cues=Array.isArray(s.parsedCaptions)?s.parsedCaptions:[];
+  host.innerHTML=cues.map((c,i)=>`<div class="timing-cue-row" data-cue-row="${i}"><span class="timing-cue-index">${i+1}</span><label>Word <input aria-label="Caption ${i+1} text" data-cue-index="${i}" data-cue-field="text" type="text" value="${esc(c.text)}"></label><label>Start (s) <input aria-label="Caption ${i+1} start seconds" data-cue-index="${i}" data-cue-field="start" type="number" min="0" step="0.01" value="${Number(c.start).toFixed(2)}"></label><label>End (s) <input aria-label="Caption ${i+1} end seconds" data-cue-index="${i}" data-cue-field="end" type="number" min="0" step="0.01" value="${Number(c.end).toFixed(2)}"></label><button type="button" class="secondary" data-cue-delete="${i}" aria-label="Delete caption ${i+1}">Delete</button></div>`).join('');
+  const count=$('timingCueCount');if(count)count.textContent=String(cues.length);
+}
+function syncTranscriptFromTimingEditor(){
+  const value=formatTranscriptCues(s.parsedCaptions||[]);
+  $('lyricsText').value=value;const studio=$('studioLyricsText');if(studio&&studio.value!==value)studio.value=value;s.transcriptLineBreaks=transcriptLineBreakOffsets(value);
+  s.timingTemplate=(s.parsedCaptions||[]).map(c=>({...c}));s.captionsAreTimed=true;
+  const status=$('captionStatus');if(status)status.textContent=`${s.parsedCaptions.length} manually editable word cues ready · preview shows 3 words at a time · timed source`;
+}
+function updateTimingEditorField(input){
+  const index=Number(input.dataset.cueIndex),field=input.dataset.cueField,cue=s.parsedCaptions?.[index];if(!cue)return;
+  const next={...cue};if(field==='text'){next.text=input.value.trim();if(!next.text){input.value=cue.text;$('studioAiStatus').textContent='Caption text cannot be empty.';return;}}
+  else{const value=Number(input.value);if(!Number.isFinite(value)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent='Enter valid start and end times in seconds.';return;}next[field]=value;const limit=Number(s.audio?.duration);if(next.start<0||next.end<=next.start||(Number.isFinite(limit)&&limit>0&&next.end>limit)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent=`Caption ${index+1} needs 0 ≤ start < end${Number.isFinite(limit)&&limit>0?` ≤ ${limit.toFixed(2)} seconds`:''}.`;return;}}
+  s.parsedCaptions[index]=next;if(field!=='text')s.parsedCaptions.sort((a,b)=>a.start-b.start||a.end-b.end);syncTranscriptFromTimingEditor();if(field!=='text')renderTimingEditor();$('studioAiStatus').textContent=`Updated caption ${index+1}. Start and end times are seconds on the original audio.`;
+}
+function addTimingCue(){
+  const limit=Number(s.audio?.duration)||Infinity,last=[...(s.parsedCaptions||[])].sort((a,b)=>a.start-b.start).at(-1),start=last?Math.max(last.end,Number(last.start)+.01):0,end=Math.min(limit,start+1);
+  if(!(end>start)){$('studioAiStatus').textContent='There is no time left in this audio for another cue.';return;}
+  s.parsedCaptions.push({start,end,text:'word'});syncTranscriptFromTimingEditor();renderTimingEditor();$('studioAiStatus').textContent='Added a word cue. Edit its text, start, and end seconds.';
+}
+function deleteTimingCue(index){if(!Number.isInteger(index)||index<0||index>=s.parsedCaptions.length)return;removeTimingCuePreservingBreak(s.parsedCaptions,index);syncTranscriptFromTimingEditor();renderTimingEditor();}
+const romanizationToggle=$('romanizationToggle');
+function readRomanizationPreference(){return storageGet('freezeRomanization')==='true';}
+function updateRomanizationLabel(){romanizationToggle.nextElementSibling.textContent=romanizationToggle.checked?'ON':'OFF';}
+romanizationToggle.checked=readRomanizationPreference();
+romanizationToggle.addEventListener('change',()=>{storageSet('freezeRomanization',String(romanizationToggle.checked));updateRomanizationLabel();});
+updateRomanizationLabel();
+const transcriptionModel=$('transcriptionModel');
+const savedModel=storageGet(MODEL_KEY);if(savedModel&&['auto','Xenova/whisper-tiny','Xenova/whisper-base','Xenova/whisper-small'].includes(savedModel))transcriptionModel.value=savedModel;
+transcriptionModel.addEventListener('change',()=>storageSet(MODEL_KEY,transcriptionModel.value));
+function setTranscriptText(text, timedCaptions=null){
+  const value=String(text||'');s.transcriptLineBreaks=transcriptLineBreakOffsets(value);if($('lyricsText').value!==value)$('lyricsText').value=value;
+  const studio=$('studioLyricsText');if(studio&&studio.value!==value)studio.value=value;
+  const srt=parseTimedCaptions(value),lrc=parseLrcCaptions(value,s.audio?.duration||60);
+  let timingSource='estimated from text';
+  if(Array.isArray(timedCaptions)&&timedCaptions.length){
+    s.timingTemplate=normalizeCaptionCues(makeWordCues(timedCaptions.map(c=>({start:Number(c.start),end:Number(c.end),text:String(c.text||'')}))),s.audio?.duration);
+    s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=true;timingSource='Whisper word timestamps (review accuracy)';
+  }else if(srt.length){
+    s.timingTemplate=normalizeCaptionCues(makeWordCues(srt),s.audio?.duration);s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=false;timingSource='estimated inside imported subtitle phrases';
+  }else if(lrc.length){
+    s.timingTemplate=normalizeCaptionCues(makeWordCues(lrc),s.audio?.duration);s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=false;timingSource='estimated inside imported lyric lines';
+  }else if(s.timingTemplate?.length){
+    const words=value.trim().split(/\s+/).filter(Boolean),template=s.timingTemplate;
+    if(words.length===template.length)s.parsedCaptions=template.map((c,i)=>({...c,text:words[i]}));
+    else if(words.length){
+      const start=template[0].start,end=template[template.length-1].end,weights=words.map(w=>Math.max(1,[...w].length)),sum=weights.reduce((a,b)=>a+b,0);let cursor=start;
+      s.parsedCaptions=words.map((word,i)=>{const next=i===words.length-1?end:cursor+(end-start)*weights[i]/sum;const cue={start:cursor,end:next,text:word};cursor=next;return cue;}).filter(c=>c.end>c.start);
+    }else s.parsedCaptions=[];
+    s.captionsAreTimed=true;timingSource='edited word cues (timings still need review)';
+  }else{
+    const usePassage=s.selectedPassage;
+    s.parsedCaptions=makeWordCues(captionsFromPlainText(value,usePassage?.duration||s.audio?.duration||60,usePassage?.start||0));
+    s.captionsAreTimed=false;timingSource='estimated from text duration';
+  }
+  s.parsedCaptions=applyTranscriptLineBreaks(s.parsedCaptions,s.transcriptLineBreaks);
+  const count=$('captionStatus');if(count)count.textContent=s.parsedCaptions.length?`${s.parsedCaptions.length} word cues · three words at a time · ${timingSource}`:'No captions yet.';
+  renderTimingEditor();
+  return s.parsedCaptions;
+}
+const DB_NAME='freeze-editorx-db',DB_VERSION=1,STORE='projects';
+function openProjectDB(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(new Error('IndexedDB is unavailable in this browser.'));return;}const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open project storage.'));});}
+async function dbRequest(mode,work){const db=await openProjectDB();try{return await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,mode),store=tx.objectStore(STORE);let req,result;try{req=work(store);}catch(e){reject(e);return;}if(req){req.onsuccess=()=>{result=req.result;};req.onerror=()=>reject(req.error||new Error('Project storage failed.'));}tx.oncomplete=()=>resolve(req?result:true);tx.onerror=()=>reject(tx.error||new Error('Project storage failed.'));tx.onabort=()=>reject(tx.error||new Error('Project storage transaction was cancelled.'));});}finally{db.close();}}
+async function saveProject(nameOverride){
+  if(!s.audio||s.videos.length<2){show('Cannot save yet','Add at least two videos and one audio file first.');return;}
+  let enteredName=nameOverride;
+  if(nameOverride===undefined){
+    try{enteredName=window.prompt('Name this project:',`Freeze Project ${new Date().toLocaleDateString()}`);}
+    catch{
+      const suggestedName=`Freeze Project ${new Date().toLocaleDateString()}`;
+      show('Save project',`<label for="projectNameInput">Project name</label><input id="projectNameInput" type="text" maxlength="120" value="${esc(suggestedName)}" autocomplete="off">`,[['Save',()=>{const name=$('projectNameInput').value.trim();if(name)saveProject(name);},true]]);
+      $('projectNameInput').focus();
+      return;
+    }
+  }
+  const name=(nameOverride!==undefined?nameOverride:enteredName||'').trim();if(!name)return;
+  try{const record={id:'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,created:new Date().toISOString(),videos:s.videos.map(v=>({blob:v.file,name:v.file.name,type:v.file.type,duration:v.duration})),audio:{blob:s.audio.file,name:s.audio.file.name,type:s.audio.file.type,duration:s.audio.duration},lyrics:$('lyricsText').value,parsedCaptions:s.parsedCaptions,captionsAreTimed:s.captionsAreTimed,smart:s.smart,selectedPassage:s.selectedPassage,lastTranscriptionDiagnostics:s.lastTranscriptionDiagnostics||null,prefs:{...prefs}};await dbRequest('readwrite',store=>store.put(record));show('Project saved',`<p><b>${esc(name)}</b> has been saved in this browser's local project storage, including its media files.</p><p>It will remain available on this device and browser unless site data is cleared.</p>`);}catch(e){show('Could not save project',esc(e.message||String(e)));}
+}
+async function listProjects(){try{return await dbRequest('readonly',store=>store.getAll())||[];}catch(e){show('Project storage unavailable',esc(e.message||String(e)));return [];}}
+async function loadProject(id){try{const record=await dbRequest('readonly',store=>store.get(id));if(!record)throw new Error('That project could not be found.');s.videos.forEach(v=>v.previewUrl&&URL.revokeObjectURL(v.previewUrl));s.videos=record.videos.map(v=>({file:new File([v.blob],v.name,{type:v.type}),duration:v.duration}));s.audio={file:new File([record.audio.blob],record.audio.name,{type:record.audio.type}),duration:record.audio.duration};s.smart=!!record.smart;s.selectedPassage=record.selectedPassage||null;s.lastTranscriptionDiagnostics=record.lastTranscriptionDiagnostics||null;if(s.lastTranscriptionDiagnostics)renderTranscriptionDiagnostics(s.lastTranscriptionDiagnostics);$('lyricsText').value=record.lyrics||'';s.transcriptLineBreaks=transcriptLineBreakOffsets(record.lyrics||'');s.captionsAreTimed=!!record.captionsAreTimed;s.parsedCaptions=Array.isArray(record.parsedCaptions)&&record.parsedCaptions.length?record.parsedCaptions:captionsForText($('lyricsText').value,s.audio.duration);s.parsedCaptions=applyTranscriptLineBreaks(s.parsedCaptions,s.transcriptLineBreaks);prefs={...prefs,...record.prefs};storageSet(PREF_KEY,JSON.stringify(prefs));renderUI();closeModal();show('Project loaded',`<p><b>${esc(record.name)}</b> is loaded and ready to edit.</p>`);}catch(e){show('Could not load project',esc(e.message||String(e)));}}
+async function deleteProject(id){try{await dbRequest('readwrite',store=>store.delete(id));showProjects();}catch(e){show('Could not delete project',esc(e.message||String(e)));}}
+async function showProjects(){const projects=await listProjects();const html=projects.length?projects.map(pr=>`<div class="file" style="margin:8px 0;"><div class="meta"><div class="name">${esc(pr.name)}</div><div class="info">${new Date(pr.created).toLocaleString()} · ${pr.videos.length} videos</div></div><button class="secondary" data-load="${esc(pr.id)}">Open</button><button class="remove" data-delete="${esc(pr.id)}" aria-label="Delete project">×</button></div>`).join(''):'<p>No saved projects yet. Save one from the Studio.</p>';
+  show('Your Projects',html,[]);$('modalBody').querySelectorAll('[data-load]').forEach(b=>b.onclick=()=>loadProject(b.dataset.load));$('modalBody').querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this saved project and its stored media?'))deleteProject(b.dataset.delete);});}
+
+function closeModal(){ stopPreview('Studio closed'); $('modal').classList.remove('open'); }
+
+function show(title,body,btns=[['Close',closeModal,false]]){
+  if($('modal').classList.contains('open')&&$('modalTitle').textContent==='Freeze Editorx Studio'&&title!=='Freeze Editorx Studio')stopPreview('Studio view changed');
+  $('modalTitle').textContent=title;
+  $('modalBody').innerHTML=body;
+  $('modalButtons').innerHTML='';
+  
+  const closeBtn=document.createElement('button');
+  closeBtn.className='secondary'; closeBtn.textContent='Close';
+  closeBtn.onclick=(e)=>{ e.stopPropagation(); closeModal(); };
+  $('modalButtons').append(closeBtn);
+
+  const rightGroup=document.createElement('div');
+  rightGroup.style.display='flex'; rightGroup.style.gap='8px';
+  btns.forEach(([l,fn,p])=>{
+    if(l==='Close') return;
+    const b=document.createElement('button');
+    b.className=p?'primary':'secondary'; b.textContent=l; 
+    b.onclick=(e)=>{ e.stopPropagation(); fn(); };
+    rightGroup.append(b);
+  });
+  $('modalButtons').append(rightGroup);
+
+  $('modal').classList.add('open');
+}
+$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('modal').classList.contains('open'))closeModal();});
+
+function renderUI(){
+  $('videoFiles').innerHTML='';
+  s.videos.forEach((x,i)=>{
+    const r=document.createElement('div'); r.className='file';
+    const v=document.createElement('video'); v.className='preview'; v.src=x.previewUrl||(x.previewUrl=URL.createObjectURL(x.file)); v.muted=true; v.setAttribute('playsinline',''); v.preload='metadata';
+    r.innerHTML=`<div class="meta"><div class="name">${esc(x.file.name)}</div><div class="info">${size(x.file.size)} · ${fmt(x.duration)}</div></div>`;
+    r.prepend(v);
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    rm.onclick=(e)=>{ e.stopPropagation(); const [removed]=s.videos.splice(i,1); if(removed?.previewUrl)URL.revokeObjectURL(removed.previewUrl); renderUI(); };
+    r.append(rm); $('videoFiles').append(r);
+  });
+
+  $('audioFiles').innerHTML='';
+  if(s.audio){
+    const r=document.createElement('div'); r.className='file';
+    r.innerHTML=`<div class="preview" style="display:grid;place-items:center">${s.audio.isExtracted?'🎞️':'♫'}</div><div class="meta"><div class="name">${esc(s.audio.file.name)} ${s.audio.isExtracted?'(Extracted)':''}</div><div class="info">${size(s.audio.file.size)} · ${fmt(s.audio.duration)}</div></div>`;
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    rm.onclick=(e)=>{ e.stopPropagation(); s.audio=null; renderUI(); };
+    r.append(rm); $('audioFiles').append(r);
+  }
+
+  $('lyricsFiles').innerHTML='';
+  if(s.lyricsFile){
+    const r=document.createElement('div'); r.className='file';
+    r.innerHTML=`<div class="preview" style="display:grid;place-items:center">TXT</div><div class="meta"><div class="name">${esc(s.lyricsFile.name)}</div><div class="info">${size(s.lyricsFile.size)}</div></div>`;
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    rm.onclick=(e)=>{ e.stopPropagation(); s.lyricsFile=null; s.parsedCaptions=[];s.timingTemplate=null;s.captionsAreTimed=false; $('lyricsText').value=''; renderUI(); };
+    r.append(rm); $('lyricsFiles').append(r);
+  }
+
+  const eligible=s.videos.length>=8&&s.audio&&s.audio.duration>=60&&s.videos.length<=12;
+  $('smartToggle').disabled=!eligible;
+  if(!eligible) s.smart=false;
+  $('smartToggle').checked=s.smart;
+  $('smartHint').textContent=eligible?'On: starts with Rank 1, the loudest measured segment. This is not AI understanding.':'Unlocks with 8–12 videos and audio ≥ 1 min.';
+  $('status').textContent=s.videos.length<2?`Add ${2-s.videos.length} more video(s) to continue.`:'Ready to create three ranked previews.';
+  $('continueBtn').disabled=s.videos.length<2;
+
+}
+
+async function getDuration(file,kind){
+  const el=document.createElement(kind==='audio'?'audio':'video');
+  const url=URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve,reject)=>{
+      el.preload='metadata';
+      el.onloadedmetadata=()=>Number.isFinite(el.duration)&&el.duration>0?resolve(el.duration):reject(new Error('Invalid media duration'));
+      el.onerror=()=>reject(new Error('The browser could not read this media file.'));
+      el.src=url;
+    });
+  } finally { URL.revokeObjectURL(url); el.removeAttribute('src'); el.load(); }
+}
+
+$('videoInput').onchange=async e=>{
+  const incoming=Array.from(e.target.files||[]);let rejected=0;
+  for(const f of incoming){
+    if(s.videos.length>=12){rejected++;continue;}
+    if(!f.type.startsWith('video/')){rejected++;continue;}
+    try{const d=await getDuration(f,'video');s.videos.push({file:f,duration:d});}
+    catch(err){rejected++;}
+  }
+  e.target.value='';renderUI();
+  if(rejected)show('Some videos were not added',`${rejected} file(s) were skipped because they were unsupported, unreadable, or exceeded the 12-video limit.`);
+};
+
+$('audioInput').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  if(!f.type.startsWith('audio/')&&!/\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name)){
+    show('Audio required','Please choose an audio file. Video-to-audio extraction is not implemented in this version.');
+    return;
+  }
+  try { const d=await getDuration(f,'audio'); s.audio={file:f,duration:d,isExtracted:false};setTranscriptText($('lyricsText').value); } catch(err){show('Could not load audio',esc(err.message));}
+  e.target.value=''; renderUI();
+};
+
+async function loadTranscriptFile(file){
+  if(!file)return;
+  const allowed=/\.(txt|srt|vtt|lrc)$/i.test(file.name)||['text/plain','application/x-subrip','text/vtt'].includes(file.type);
+  if(!allowed){show('Unsupported transcript','Choose a .TXT, .SRT, .VTT or .LRC file.');return;}
+  try{const text=await file.text();if(!text.trim())throw new Error('The selected transcript file is empty.');s.lyricsFile=file;s.timingTemplate=null;setTranscriptText(text);renderUI();}
+  catch(err){show('Could not read transcript',esc(err.message||String(err)));}
+}
+$('lyricsInput').onchange=async e=>{const f=e.target.files[0];await loadTranscriptFile(f);e.target.value='';};
+$('smartToggle').onchange=e=>{s.smart=e.target.checked;renderUI()};
+$('lyricsText').addEventListener('input',()=>setTranscriptText($('lyricsText').value));
+
+async function analyzeAudioLoudness(audioFile){
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx) throw new Error('Web Audio is not supported in this browser.');
+  const ctx=new AudioCtx();
+  try {
+    const decoded=await ctx.decodeAudioData(await audioFile.arrayBuffer());
+    const sr=decoded.sampleRate,dur=decoded.duration,win=1,hop=0.5;
+    if(dur>1800)throw new Error('Audio longer than 30 minutes is not supported by this browser build.');
+    const decodedBytes=decoded.length*decoded.numberOfChannels*4;const analysisLimit=(DEVICE.memory<=4?96:DEVICE.memory<=6?160:256)*1024*1024;if(decodedBytes>analysisLimit)throw new Error('This audio needs more memory than the current device profile allows. Try a shorter or smaller audio file.');
+    if(dur<3)throw new Error('The audio must be at least 3 seconds long to create three separate ranked segments.');
+    const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i));
+    const winSamples=Math.max(1,Math.floor(win*sr)),hopSamples=Math.max(1,Math.floor(hop*sr));
+    const windows=[];
+    for(let i=0;i+winSamples<=decoded.length;i+=hopSamples){
+      let sum=0,count=0;const stride=Math.max(1,Math.floor(sr/8000));
+      for(const channel of channels)for(let j=0;j<winSamples;j+=stride){const v=channel[i+j];sum+=v*v;count++;}
+      windows.push({time:i/sr,rms:Math.sqrt(sum/Math.max(1,count))});
+    }
+    const passageLength=Math.min(15,Math.max(1,dur/3));
+    const hopSeconds=Math.max(.5,Math.min(2,passageLength/5));
+    const passages=[];
+    for(let start=0;start+passageLength<=dur+0.001;start+=hopSeconds){
+      let sum=0,count=0;
+      for(const w of windows){if(w.time>=start&&w.time<start+passageLength){sum+=w.rms;count++;}}
+      if(count)passages.push({start,end:Math.min(dur,start+passageLength),duration:Math.min(passageLength,dur-start),rms:sum/count});
+    }
+    passages.sort((a,b)=>b.rms-a.rms);
+    const top=[];
+    for(const passage of passages){
+      // Never let two ranks reuse overlapping audio.
+      if(top.some(t=>passage.start<t.end&&passage.end>t.start))continue;
+      top.push({...passage,strength:`Relative loudness ${(passage.rms*100).toFixed(1)}%`});
+      if(top.length===3)break;
+    }
+    if(top.length<3){
+      // Fallback: divide the track into three disjoint time ranges.
+      const span=dur/3;
+      return [0,1,2].map(i=>{const start=i*span,end=i===2?dur:(i+1)*span;const rel=windows.filter(w=>w.time>=start&&w.time<end);const rms=rel.length?rel.reduce((a,b)=>a+b.rms,0)/rel.length:0;return {start,end,duration:end-start,rms,strength:`Relative loudness ${(rms*100).toFixed(1)}%`};}).sort((a,b)=>b.rms-a.rms);
+    }
+    return top;
+  } finally {if(ctx.state!=='closed')await ctx.close();}
+}
+
+function buildRankVideoGroups(videoItems,rankCount=3){
+  const groups=Array.from({length:rankCount},()=>[]);
+  // Disjoint assignment: a source clip belongs to exactly one rank.
+  videoItems.forEach((item,index)=>groups[index%rankCount].push(item));
+  // Two source clips still support three ranks; reuse one as a fallback rather
+  // than leaving a ranked preview without a visual source.
+  for(let i=0;i<rankCount;i++)if(!groups[i].length&&videoItems.length)groups[i].push(videoItems[i%videoItems.length]);
+  return groups;
+}
+function getActiveRankVideos(){const group=s.rankVideoGroups[s.activeRank];return Array.isArray(group)&&group.length?group:s.videos;}
+
+
+let lastDrawnFrameCanvas = null;
+
+function drawFrame(ctx,w,h,vEls,vIdxRef,elapsed,duration,lyrics,captions=[],sourceTime=elapsed){
+  const bright=$('adjB')?.value||105, contrast=$('adjC')?.value||110, sat=$('adjS')?.value||115;
+  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.filter=`brightness(${bright}%) contrast(${contrast}%) saturate(${sat}%)`;ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+  const v=vEls[vIdxRef.idx]||vEls[0];
+  if(v&&v.readyState>=2&&v.videoWidth&&v.videoHeight){const scale=Math.max(w/v.videoWidth,h/v.videoHeight),dw=v.videoWidth*scale,dh=v.videoHeight*scale;ctx.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh);}
+  ctx.restore();
+  let activeCaptions=captions||[];
+  if(!activeCaptions.length&&lyrics&&lyrics.trim())activeCaptions=makeWordCues(captionsFromPlainText(lyrics,duration,Math.max(0,sourceTime-elapsed)));
+  else if(activeCaptions.length)activeCaptions=displayWordCues(activeCaptions);
+  // Display a rolling group of three independently timed words.
+  const group=activeCaptionGroup(activeCaptions,sourceTime);if(!group.length)return;
+  const words=group.map(c=>String(c.text||'').trim()).filter(Boolean);if(!words.length)return;
+  const groupStartTime=group[0]?.start??sourceTime,groupEndTime=group[group.length-1]?.end??sourceTime;
+  const animation=prefs.captionAnimation||'fade';
+  const fadeIn=animation==='fade'?Math.min(1,Math.max(0,(sourceTime-groupStartTime)/.12)):1;
+  const fadeOut=animation==='fade'?Math.min(1,Math.max(0,(groupEndTime-sourceTime)/.12)):1;
+  const activeIndex=group.findIndex(c=>sourceTime>=c.start&&sourceTime<c.end);
+  const captionText=words.join(' '),rtl=/[\u0590-\u08FF]/.test(captionText);
+  const families={arabic:'"Noto Naskh Arabic", "Noto Sans Arabic", system-ui, sans-serif',sans:'system-ui, "Noto Sans Arabic", sans-serif',serif:'Georgia, "Noto Naskh Arabic", serif'};
+  ctx.save();ctx.globalAlpha=Math.min(fadeIn,fadeOut);ctx.textBaseline='middle';ctx.direction=rtl?'rtl':'ltr';
+  let font=Math.round(w*prefs.captionScale),spacing=Number(prefs.captionSpacing)||0;
+  const family=families[prefs.captionFont]||families.arabic;
+  const maxWidth=w*.90,minFont=Math.round(w*.032);
+  const measure=()=>words.reduce((sum,word)=>sum+ctx.measureText(word).width,0)+spacing*Math.max(0,words.length-1);
+  ctx.font=`900 ${font}px ${family}`;while(measure()>maxWidth&&font>minFont){font-=1;ctx.font=`900 ${font}px ${family}`;}
+  const totalWidth=measure(),y=h*prefs.captionPosition;
+  if(animation==='pop'){const progress=Math.min(1,Math.max(0,(sourceTime-groupStartTime)/.16)),scale=.92+.08*progress;ctx.translate(w/2,y);ctx.scale(scale,scale);ctx.translate(-w/2,-y);}
+  ctx.textAlign=rtl?'right':'left';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,w*.006);
+  ctx.strokeStyle='rgba(0,0,0,.88)';ctx.shadowColor=prefs.captionShadow?'rgba(0,0,0,.72)':'transparent';ctx.shadowBlur=prefs.captionShadow?Math.max(3,w*.012):0;
+  let cursor=rtl?w/2+totalWidth/2:w/2-totalWidth/2;
+  words.forEach((word,index)=>{
+    const width=ctx.measureText(word).width,x=cursor;
+    if(prefs.captionOutline)ctx.strokeText(word,x,y);
+    ctx.fillStyle=prefs.captionHighlight&&index===activeIndex?(prefs.captionHighlightColor||'#ffd166'):(prefs.captionColor||'#ffffff');
+    ctx.fillText(word,x,y);
+    cursor+=rtl?-(width+spacing):(width+spacing);
+  });
+  ctx.restore();
+}
+
+
+let transcriptionWorker=null,transcriptionBusy=false,transcriptionRunId=0,activeTranscriptionAudioContext=null;
+let activeTranscriptionButton=null;
+function setTranscriptionProgress(percent){
+  const wrap=$('transcriptionProgressWrap'),bar=$('transcriptionProgress'),studioWrap=$('studioTranscriptionProgressWrap'),studioBar=$('studioTranscriptionProgress');
+  if(wrap)wrap.hidden=false;if(studioWrap)studioWrap.hidden=false;
+  if(Number.isFinite(percent)){const value=`${Math.max(0,Math.min(100,percent))}%`;if(bar)bar.style.width=value;if(studioBar)studioBar.style.width=value;}
+}
+function finishTranscriptionUI(){
+  transcriptionBusy=false;if(activeTranscriptionButton)activeTranscriptionButton.disabled=false;activeTranscriptionButton=null;$('cancelTranscribeBtn').disabled=true;const studioCancel=$('studioCancelTranscribeBtn');if(studioCancel)studioCancel.disabled=true;
+}
+function renderTranscriptionDiagnostics(data){
+  if(!data)return;
+  s.lastTranscriptionDiagnostics={...data};
+  const details=$('transcriptionDiagnostics'),meta=$('transcriptionDiagnosticMeta'),raw=$('rawTranscriptionText'),chunkRoot=$('chunkTranscriptionDiagnostics');
+  if(raw)raw.value=String(data.rawText||'');
+  const chunkRows=Array.isArray(data.chunkDiagnostics)?data.chunkDiagnostics:[];
+  if(meta){
+    const seconds=Number(data.duration)||0;
+    const languageLabels={auto:'Auto (Whisper selected; detected language not separately reported)',urdu:'Urdu (forced)',hindi:'Hindi (forced)',arabic:'Arabic (forced)',english:'English (forced)'};
+    const pieces=[
+      `Selected language: ${languageLabels[data.selectedLanguage]||data.selectedLanguage||'Unknown'}`,
+      `Model: ${data.model||'Unknown'}`,
+      `Audio: ${seconds.toFixed(1)} seconds`,
+      `Chunks: ${Number(data.chunkCount)||0}`,
+      `Raw word cues: ${Number(data.rawWordCueCount)||0}`,
+      `Processed word cues: ${Number(data.processedWordCueCount)||0}`,
+      `Merge overlap words removed: ${Number(data.totalMergedOverlapWords)||0}`,
+      `Total model inference: ${((Number(data.totalInferenceMs)||0)/1000).toFixed(1)} seconds`,
+      `Raw output script: ${data.scriptEstimate||'Not reported'}`,
+      `Romanisation: ${data.romanize?'Yes':'No'}`,
+      `Decoder token cap: ${Number(data.maxNewTokens)||'Not reported'}`,
+      `Suspected runaway chunks excluded: ${Number(data.degenerateChunks)||0}`,
+      `Empty-decode chunks skipped: ${Number(data.emptyDecodeChunks)||0}`,
+      `Timestamp decoder retries: ${chunkRows.filter(chunk=>chunk.timestampDecoderRetry).length}`,
+      `Timestamp fallback attempts: ${Number(data.timestampFallbacks)||0}`
+    ];
+    meta.textContent=pieces.join(' · ');
+  }
+  if(chunkRoot){
+    chunkRoot.replaceChildren();
+    if(!chunkRows.length){const empty=document.createElement('p');empty.className='hint';empty.textContent='No per-chunk diagnostics were returned.';chunkRoot.append(empty);}
+    for(const chunk of chunkRows){
+      const card=document.createElement('details');card.style.cssText='border:1px solid var(--line);border-radius:8px;padding:8px;';
+      const summary=document.createElement('summary');summary.style.cssText='cursor:pointer;font-weight:600;';
+      summary.textContent=`Chunk ${chunk.chunk} · ${Number(chunk.startSec).toFixed(1)}–${Number(chunk.endSec).toFixed(1)}s · ${chunk.wordCount} words · ${chunk.inferenceMs}ms${chunk.suspectedDegeneration?' · ⚠ suspected decoding loop (excluded)':chunk.emptyDecode?' · ⚠ empty decode (skipped)':chunk.timestampFallback?' · estimated timing fallback':chunk.timestampDecoderRetry?' · timestamp decoder retry':''}`;
+      const metrics=document.createElement('p');metrics.className='hint';metrics.style.margin='7px 0';
+      metrics.textContent=`Adjacent repeats: ${chunk.adjacentRepeatedWords} · Longest repeated-word run: ${chunk.longestRepeatedWordRun} · Most repeated 3-word phrase: ${chunk.mostRepeatedTrigram||'None'} (${chunk.mostRepeatedTrigramCount}) · Raw timed cues: ${chunk.timedCueCount} · Usable timed cues: ${chunk.usableTimedCueCount??chunk.timedCueCount} · Exact overlap words removed: ${chunk.mergeOverlapWordsRemoved} · Audio RMS: ${chunk.audioRms} · Peak: ${chunk.audioPeak}${chunk.timestampDecoderRetry?' · Word-timestamp decoder retried with segment timestamps':''}${chunk.degenerationReasons?.length?' · Reason: '+chunk.degenerationReasons.join(', '):''}${chunk.errorMessage?' · Error: '+chunk.errorMessage:''}`;
+      const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;margin:6px 0 0;padding:8px;background:var(--panel,rgba(127,127,127,.08));border-radius:6px;font:inherit;';
+      pre.textContent=String(chunk.rawText||'(Whisper returned no text for this chunk)')+(chunk.rawTextTruncated?'\n\n[Display limited to the first 3,500 characters of this chunk.]':'');
+      card.append(summary,metrics,pre);chunkRoot.append(card);
+    }
+  }
+  if(details)details.open=!!data.openDetails;
+  const chunkDisclosure=$('chunkDiagnosticsDisclosure');
+  if(chunkDisclosure)chunkDisclosure.open=!!data.openChunkDetails;
+}
+$('copyTranscriptionDiagnostics').onclick=async()=>{
+  const data=s.lastTranscriptionDiagnostics||{};
+  const report={...data,exportedAt:new Date().toISOString()};
+  const text=JSON.stringify(report,null,2);
+  const status=$('copyTranscriptionDiagnosticsStatus');
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(text);
+    else{const box=document.createElement('textarea');box.value=text;box.style.position='fixed';box.style.opacity='0';document.body.append(box);box.select();const ok=document.execCommand('copy');box.remove();if(!ok)throw new Error('Clipboard copy was blocked by the browser.');}
+    if(status)status.textContent='Diagnostic report copied.';
+  }catch(error){if(status)status.textContent='Copy blocked. Open the details and copy the text manually.';}
+};
+function repeatedTextWarning(text){
+  const words=String(text||'').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu)||[];
+  if(words.length<8)return null;
+  let adjacent=0;for(let i=1;i<words.length;i++)if(words[i]===words[i-1])adjacent++;
+  const trigrams=new Map();for(let i=0;i+2<words.length;i++){const k=words.slice(i,i+3).join(' ');trigrams.set(k,(trigrams.get(k)||0)+1);}
+  const maxTri=Math.max(0,...trigrams.values());
+  if(adjacent>=4||adjacent/words.length>.18||maxTri>=4)return 'The model produced unusually repetitive words. This may be a recognition error, especially with music or singing. Please review the transcript carefully before using it.';
+  return null;
+}
+function makeTranscriptionWorker(){
+  // Use a same-folder worker file instead of a Blob URL. This avoids common
+  // Content-Security-Policy and opaque-origin failures caused by blob workers.
+  // Serve the HTML and this worker from the same localhost/HTTPS origin.
+  if(location.protocol==='file:'){
+    throw new Error('Background workers are blocked when this HTML is opened directly as a file. Keep freeze-transcription-worker.js beside the HTML and open the folder through a local web server (for example VS Code Live Server).');
+  }
+  const workerUrl=new URL('./freeze-transcription-worker.js',document.baseURI);
+  return new Worker(workerUrl,{type:'classic',name:'FreezeEditorxTranscription'});
+}
+async function transcribeAudio(btn,label){
+  if(transcriptionBusy)return;
+  if(!s.audio){show('Audio required','Upload your naat, recitation or speech audio first.');return;}
+  if(!storageGet(CONSENT_KEY)){showFirstRun(()=>transcribeAudio(btn,label));return;}
+  if(!window.Worker||!window.Blob||!URL.createObjectURL){show('Unsupported browser','This browser does not support the background transcription worker. Try an up-to-date Chrome or Edge browser.');return;}
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC){show('Audio decoding unavailable','This browser does not support Web Audio decoding.');return;}
+  if(s.audio.file.size>(DEVICE.memory<=4?100:160)*1024*1024){show('Audio file too large','This device profile limits transcription input to reduce memory failures. Use a shorter or smaller audio file.');return;}
+  transcriptionBusy=true;activeTranscriptionButton=btn;const runId=++transcriptionRunId;btn.disabled=true;$('cancelTranscribeBtn').disabled=false;const studioCancel=$('studioCancelTranscribeBtn');if(studioCancel)studioCancel.disabled=false;setTranscriptionProgress(0);
+  label.textContent='Decoding audio locally…';
+  let audioContext=null;
+  try{
+    audioContext=new AC();activeTranscriptionAudioContext=audioContext;
+    const decoded=await audioContext.decodeAudioData(await s.audio.file.arrayBuffer());
+    if(runId!==transcriptionRunId)return;
+    if(decoded.length*decoded.numberOfChannels*4>(DEVICE.memory<=4?96:160)*1024*1024)throw new Error('Decoded audio would require more than the safe memory budget for this device transcription input. Use a shorter or lower-channel-count audio file to avoid a browser memory failure.');
+    if(decoded.duration>1800)throw new Error('This browser build currently limits a single transcription job to 30 minutes. Split longer recordings into shorter files.');
+    const channels=[];const transfers=[];
+    for(let i=0;i<decoded.numberOfChannels;i++){const copy=decoded.getChannelData(i).slice();channels.push(copy.buffer);transfers.push(copy.buffer);}
+    if(audioContext.state!=='closed')await audioContext.close();audioContext=null;activeTranscriptionAudioContext=null;
+    const reuseLoadedWorker=!!transcriptionWorker;
+    label.textContent=reuseLoadedWorker?'Reusing the loaded transcription worker…':(DEVICE.slowNet?'Starting transcription. The model download may take longer on this connection…':'Starting multilingual Whisper in a background worker…');
+    if(!transcriptionWorker)transcriptionWorker=makeTranscriptionWorker();
+    const worker=transcriptionWorker;
+    // Keep the worker alive after successful jobs so its Whisper pipeline stays in memory.
+    // It is terminated only on cancellation, an uncaught worker error, or page shutdown.
+    const cleanup=()=>{};
+    worker.onmessage=e=>{
+      if(runId!==transcriptionRunId)return;const m=e.data||{};
+      if(m.type==='model-progress'){
+        const pct=Number.isFinite(m.progress)?Math.round(m.progress):null;
+        label.textContent=`Downloading/loading model: ${m.status}${pct!==null?` · ${pct}%`:''}${m.file?' · '+m.file.split('/').pop():''}`;
+        if(pct!==null)setTranscriptionProgress(pct*.1);
+      }else if(m.type==='progress'){
+        label.textContent=m.message||'Transcribing…';
+        s.lastTranscriptionProgress={stage:m.stage||'',message:m.message||'',chunk:m.chunk||0,totalChunks:m.totalChunks||0,updatedAt:new Date().toISOString()};
+        if(Number.isFinite(m.percent))setTranscriptionProgress(m.percent);
+      }else if(m.type==='complete'){
+        cleanup();const text=String(m.text||'').trim();
+        const timed=Array.isArray(m.captions)?m.captions.filter(c=>c&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start):[];
+        s.lastAsrWordCues=timed.map(c=>({...c}));s.pendingAiTranscript=text?{text,captions:s.lastAsrWordCues.map(c=>({...c}))}:null;
+        renderTranscriptionDiagnostics({
+          rawText:String(m.rawText??m.text??''),selectedLanguage:m.selectedLanguage||$('transcriptionLanguage').value,
+          model:m.model||'',duration:Number(m.duration)||0,chunkCount:Number(m.chunkCount)||0,
+          scriptEstimate:m.scriptEstimate||'Not reported',rawWordCueCount:Number(m.rawWordCueCount)||0,
+          processedWordCueCount:captionWordCount(timed),romanize:!!m.romanize,
+          chunkDiagnostics:Array.isArray(m.chunkDiagnostics)?m.chunkDiagnostics:[],
+          totalInferenceMs:Number(m.totalInferenceMs)||0,totalMergedOverlapWords:Number(m.totalMergedOverlapWords)||0,
+          maxNewTokens:Number(m.maxNewTokens)||0,emptyDecodeChunks:Number(m.emptyDecodeChunks)||0,
+          degenerateChunks:Number(m.degenerateChunks)||0,timestampFallbacks:Number(m.timestampFallbacks)||0,
+          partial:!!m.partial,createdAt:new Date().toISOString()
+        });
+        if(!text){
+          label.textContent='No reliable transcript was produced. Inspect the raw chunk diagnostics.';
+          setTranscriptionProgress(100);finishTranscriptionUI();
+          show('No reliable transcript',`<p>Whisper returned no usable text after suspicious repeated-output chunks were excluded.</p><p>Suspected runaway chunks: ${Number(m.degenerateChunks)||0} · Empty-decode chunks: ${Number(m.emptyDecodeChunks)||0}.</p><p>Open Advanced and copy the diagnostic report. No captions were generated from the rejected chunks.</p>`);
+          return;
+        }
+        const suppliedLyrics=$('lyricsText').value;
+        const aiButton=$('useAiTranscriptBtn'),alignButton=$('alignLyricsBtn');
+        if(suppliedLyrics.trim()){
+          if(aiButton)aiButton.hidden=!text;
+          if(alignButton)alignButton.hidden=!(text&&timed.length);
+        }else{
+          if(aiButton)aiButton.hidden=true;
+          if(alignButton)alignButton.hidden=true;
+          setTranscriptText(text,timed.length?timed:null);
+        }
+        const warning=repeatedTextWarning(text);
+        if(warning||m.partial){
+          label.textContent=suppliedLyrics.trim()?'AI result needs review · your supplied lyrics were kept.':'Transcription needs review · some chunks were unreliable.';
+          const extra=m.partial?`<p>Suspected runaway chunks excluded: ${Number(m.degenerateChunks)||0}. Empty-decode chunks skipped: ${Number(m.emptyDecodeChunks)||0}.</p>`:'';
+          show('Transcription may be incomplete',`<p>${esc(warning||'Some Whisper chunks were excluded or could not be decoded.')}</p>${extra}<p>${suppliedLyrics.trim()?'Your existing lyrics were not changed.':'Review the transcript and Advanced diagnostics before export.'}</p>`);
+        }else if(suppliedLyrics.trim()){
+          const comparison=compareTranscriptWords(suppliedLyrics,text);const wer=comparison.wer===null?'not scored':`${(comparison.wer*100).toFixed(1)}% WER (${comparison.edits}/${comparison.referenceWords} reference words)`;
+          label.textContent=`AI comparison ready · ${wer} · supplied lyrics kept unchanged.`;
+        }else label.textContent=`Transcription complete · ${s.parsedCaptions.length} word cues. Review the words before export.`;
+        setTranscriptionProgress(100);finishTranscriptionUI();
+      }else if(m.type==='cancelled'){
+        cleanup();label.textContent='Transcription cancelled. Your existing transcript was kept.';finishTranscriptionUI();
+      }else if(m.type==='error'){
+        cleanup();
+        const raw=String(m.message||'Unknown error');
+        const d=m.diagnostics||{};
+        renderTranscriptionDiagnostics({
+          rawText:String(d.partialRawText||''),selectedLanguage:d.selectedLanguage||$('transcriptionLanguage').value,
+          model:d.model||'',duration:Number(d.duration)||0,chunkCount:Number(d.totalChunks)||0,
+          scriptEstimate:'Partial result · inspect individual chunks',rawWordCueCount:Number(d.rawWordCueCount)||0,
+          processedWordCueCount:0,romanize:$('romanizationToggle').checked,
+          chunkDiagnostics:Array.isArray(d.chunkDiagnostics)?d.chunkDiagnostics:[],totalInferenceMs:Number(d.totalInferenceMs)||0,
+          totalMergedOverlapWords:Number(d.totalMergedOverlapWords)||0,failed:true,errorMessage:raw,errorName:m.errorName||'Error',
+          errorStack:m.errorStack||'',stage:d.stage||'unknown',currentChunk:Number(d.currentChunk)||0,
+          completedChunks:Number(d.completedChunks)||0,totalChunks:Number(d.totalChunks)||0,
+          openDetails:true,openChunkDetails:true,createdAt:new Date().toISOString()
+        });
+        if(transcriptionWorker===worker){worker.terminate();transcriptionWorker=null;}
+        label.textContent=`Transcription failed at ${d.stage||'an unknown stage'}${d.currentChunk?` · chunk ${d.currentChunk}/${d.totalChunks||'?'} `:''}. You can retry.`;
+        finishTranscriptionUI();
+        const friendly='Partial chunk diagnostics have been saved in Advanced. Copy the diagnostic report before retrying. Keep this tab visible during long transcriptions; a background or energy-saving tab may be throttled or frozen.';
+        show('AI transcription failed',`<p><b>${esc(m.errorName||'Error')}</b>: ${esc(raw)}</p><p>${esc(friendly)}</p><p>Stage: ${esc(d.stage||'unknown')} · Completed chunks: ${Number(d.completedChunks)||0}/${Number(d.totalChunks)||0} · Failed/current chunk: ${Number(d.currentChunk)||0}</p>`);
+      }
+    };
+    worker.onerror=e=>{
+      cleanup();if(transcriptionWorker===worker){worker.terminate();transcriptionWorker=null;}
+      const last=s.lastTranscriptionProgress||{};
+      renderTranscriptionDiagnostics({rawText:'',selectedLanguage:$('transcriptionLanguage').value,model:'',duration:0,chunkCount:last.totalChunks||0,scriptEstimate:'Worker crashed before completion',rawWordCueCount:0,processedWordCueCount:0,romanize:false,chunkDiagnostics:[],failed:true,errorMessage:e.message||'Worker crashed',stage:last.stage||'worker-crash',currentChunk:last.chunk||0,completedChunks:0,totalChunks:last.totalChunks||0,openDetails:true,createdAt:new Date().toISOString()});
+      label.textContent='Background transcription worker failed. You can retry.';finishTranscriptionUI();
+      show('Transcription worker failed',esc(e.message||'The browser could not run the background worker.')+`<p>Last reported stage: ${esc(last.stage||'unknown')} · ${esc(last.message||'No progress message available.')}</p><p>Check that <b>freeze-transcription-worker.js</b> is in the same folder as this HTML file, then open the folder through localhost or HTTPS. Keep the tab visible during long runs.</p>`);
+    };
+    const requestedModel=transcriptionModel.value;
+    const automaticModel=DEVICE.memory<=4?'Xenova/whisper-tiny':DEVICE.memory<=6?'Xenova/whisper-base':'Xenova/whisper-small';
+    const model=requestedModel==='auto'?automaticModel:requestedModel;
+    if(model==='Xenova/whisper-small'&&DEVICE.memory<=4){show('Model too large for this device','Whisper Small needs more memory than this browser profile provides. Choose Auto, Tiny or Base.');finishTranscriptionUI();return;}
+    label.textContent=`Loading multilingual ${model.split('-').pop()} model locally…`;
+    const chosenLanguage=$('transcriptionLanguage').value;
+    const romanize=$('romanizationToggle').checked;
+    worker.postMessage({type:'transcribe',channels,sampleRate:decoded.sampleRate,language:chosenLanguage,romanize,model},transfers);
+  }catch(e){if(audioContext&&audioContext.state!=='closed')await audioContext.close().catch(()=>{});if(activeTranscriptionAudioContext===audioContext)activeTranscriptionAudioContext=null;if(runId!==transcriptionRunId)return;label.textContent='Transcription unavailable. You can retry.';finishTranscriptionUI();show('AI transcription failed',esc(e.message||String(e))+'<p>Manual lyrics and transcript uploads remain available.</p>');}
+}
+function cancelTranscription(){if(!transcriptionBusy)return;transcriptionRunId++;if(transcriptionWorker){transcriptionWorker.terminate();if(transcriptionWorker.__objectUrl)URL.revokeObjectURL(transcriptionWorker.__objectUrl);transcriptionWorker=null;}if(activeTranscriptionAudioContext&&activeTranscriptionAudioContext.state!=='closed')activeTranscriptionAudioContext.close().catch(()=>{});activeTranscriptionAudioContext=null;finishTranscriptionUI();$('aiStatus').textContent='Transcription cancelled. Your existing transcript was kept.';const studioStatus=$('studioAiStatus');if(studioStatus)studioStatus.textContent='Transcription cancelled. Your existing transcript was kept.';}
+$('cancelTranscribeBtn').onclick=cancelTranscription;
+
+$('aiTranscribeBtn').onclick=()=>transcribeAudio($('aiTranscribeBtn'),$('aiStatus'));
+$('useAiTranscriptBtn').onclick=()=>{
+  if(!s.pendingAiTranscript?.text)return;
+  setTranscriptText(s.pendingAiTranscript.text,s.pendingAiTranscript.captions);
+  $('useAiTranscriptBtn').hidden=true;$('alignLyricsBtn').hidden=true;
+  $('aiStatus').textContent='AI transcript applied. Review every word and its model timestamps.';
+};
+$('alignLyricsBtn').onclick=()=>{
+  try{
+    const reference=$('lyricsText').value,result=alignLyricsToTimedWords(reference,s.lastAsrWordCues,s.audio?.duration);
+    setTranscriptText(reference,result.cues);s.captionsAreTimed=result.coverage>=.70;
+    const status=$('captionStatus');if(status)status.textContent=`Verified text preserved · ${result.matchedWords}/${result.totalWords} exact Whisper word anchors (${(result.coverage*100).toFixed(1)}%); remaining timings are estimated. Review every cue manually.`;
+    $('studioAiStatus').textContent=`Lyrics alignment pass: ${result.matchedWords}/${result.totalWords} exact word anchors; unmatched words have estimated timing. This is not a forced alignment.`;
+    $('alignLyricsBtn').hidden=true;
+  }catch(error){show('Could not align lyrics',esc(error.message||String(error)));}
+};
+
+$('continueBtn').onclick=async()=>{
+  if(!storageGet(CONSENT_KEY)){ showFirstRun(); return; }
+  if(!s.audio){show('Audio required','Upload an audio file first. This build cannot extract audio from an uploaded video.');return;}
+  show('Analyzing Media...','<p>Measuring audio loudness locally. This is not AI understanding or melody analysis.</p><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:50%"></div></div>', []);
+  try {
+    const ranked=await analyzeAudioLoudness(s.audio.file);
+    const rankCount=Math.min(3,ranked.length);
+    if(rankCount<3)throw new Error('Three non-overlapping audio passages could not be selected. Choose an audio track at least 3 seconds long.');
+    s.rankCandidates=ranked.slice(0,3);s.rankVideoGroups=buildRankVideoGroups(s.videos,3);s.activeRank=s.smart?0:1;
+    const initialRank=s.activeRank;s.selectedPassage={...s.rankCandidates[initialRank],rankIdx:initialRank};
+    if(!s.captionsAreTimed)setTranscriptText($('lyricsText').value);
+
+    const rows=s.rankCandidates.map((p,i)=>`
+      <tr class="${i===s.activeRank?'selected':''}" data-passage="${i}">
+        <td>Rank ${i+1}</td><td>${fmt(p.start)} - ${fmt(p.end)}</td><td>${p.duration.toFixed(1)}s</td><td>${p.strength}</td>
+      </tr>
+    `).join('');
+
+    const html=`
+      <p><b>Three separate ranked previews created</b></p>
+      <div class="notice">Each rank has a different, non-overlapping audio segment and its own exclusive stock-video group. With 6+ uploads, every rank can rotate through multiple clips. Ranking uses audio loudness—not semantic AI understanding. Select a rank to preview it.</div>
+      <table class="passages-table"><thead><tr><th>Rank</th><th>Timestamp</th><th>Duration</th><th>Intensity Ranking</th></tr></thead><tbody>${rows}</tbody></table>
+      <h4 style="margin:14px 0 6px;">Transcript / Lyrics</h4>
+      <textarea id="studioLyricsText" class="transcript" style="min-height:100px;width:100%;" placeholder="Paste or edit lyrics here. Timed SRT/VTT/LRC captions keep their timestamps."></textarea>
+      <div class="studio-controls-row" style="margin-top:8px;align-items:center;">
+        <label class="secondary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:9px 12px;border-radius:9px;">＋ Upload TXT / SRT / VTT / LRC<input id="studioLyricsFile" type="file" accept=".txt,.srt,.vtt,.lrc,text/plain" hidden></label>
+        <button type="button" class="secondary" id="studioAiBtn">✦ AI transcribe</button>
+        <button type="button" class="secondary" id="studioCancelTranscribeBtn" disabled>Cancel</button>
+      </div>
+      <div class="hint" id="studioAiStatus" role="status" aria-live="polite" style="margin-top:6px;">Edit captions here or use AI transcription. Changes update the preview and export.</div>
+      <details class="timing-editor" id="timingEditor"><summary>Adjust word timings · <span id="timingCueCount">0</span> cues</summary><p class="hint">Edit each word and its start/end time in seconds on the original audio. Gaps are allowed for pauses. The preview uses these times.</p><button type="button" class="secondary" id="addTimingCue">＋ Add word cue</button><div class="timing-cue-list" id="timingCueRows"></div></details>
+      <div class="studio-controls-row" style="margin-top:8px;"><label>Subtitle format <select id="captionExportFormat" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)"><option value="srt">SRT</option><option value="vtt">VTT</option><option value="lrc">LRC</option><option value="txt">TXT</option></select></label><button type="button" class="secondary" id="downloadCaptionsBtn">Download subtitles</button></div>
+      <div class="progress-bar-wrap" id="studioTranscriptionProgressWrap" hidden><div class="progress-bar-fill" id="studioTranscriptionProgress" style="width:0%"></div></div>
+      <h4 style="margin:14px 0 6px;">Studio Adjustments</h4>
+      <div class="studio-controls-row">
+        <span>Brightness: <input type="range" id="adjB" min="50" max="150" value="105"></span>
+        <span>Contrast: <input type="range" id="adjC" min="50" max="150" value="110"></span>
+        <span>Saturate: <input type="range" id="adjS" min="0" max="200" value="115"></span>
+      </div>
+      <div class="studio-controls-row" style="margin-top:8px;">
+        <span>Export Method: <select id="adjMethod" style="padding:4px;border-radius:6px;background:var(--card);color:var(--text);border:1px solid var(--line)"><option value="auto" ${prefs.method==='auto'?'selected':''}>Auto</option><option value="recording" ${prefs.method==='recording'?'selected':''}>Real-time Stream Recording</option><option value="render" ${prefs.method==='render'?'selected':''}>Offline frame-by-frame (WebM · supported browsers)</option></select></span>
+      </div>
+      <div class="studio-box">
+        <div class="canvas-preview-container"><canvas id="renderCanvas" width="1080" height="1920" role="button" tabindex="0" aria-label="Play or pause video preview"></canvas></div>
+        <button type="button" class="secondary" id="previewToggle" disabled>Preparing preview…</button>
+        <div style="font-size:12px;color:var(--muted)">Time: <b id="timeCode">0:00 / ${fmt(s.selectedPassage.duration)}</b></div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+        <div id="renderStatus" style="font-size:12px;color:var(--muted)">Tap preview to play/pause</div>
+      </div>
+    `;
+
+    
+
+    show('Freeze Editorx Studio', html, [['Save Project', () => saveProject(), false], ['Export Video', () => executeExport(), true]]);
+    $('studioLyricsText').value=$('lyricsText').value;
+    $('studioLyricsText').addEventListener('input',()=>setTranscriptText($('studioLyricsText').value));
+    renderTimingEditor();
+    $('timingCueRows').addEventListener('input',e=>{if(e.target.matches('[data-cue-field="text"]'))updateTimingEditorField(e.target);});
+    $('timingCueRows').addEventListener('change',e=>{if(e.target.matches('[data-cue-field="start"],[data-cue-field="end"]'))updateTimingEditorField(e.target);});
+    $('timingCueRows').addEventListener('click',e=>{const button=e.target.closest('[data-cue-delete]');if(button)deleteTimingCue(Number(button.dataset.cueDelete));});
+    $('addTimingCue').onclick=addTimingCue;
+    $('downloadCaptionsBtn').onclick=()=>downloadCaptions($('captionExportFormat').value);
+    $('studioLyricsFile').onchange=async e=>{await loadTranscriptFile(e.target.files[0]);$('studioLyricsFile').value='';$('studioLyricsText').value=$('lyricsText').value;};
+    $('studioAiBtn').onclick=()=>transcribeAudio($('studioAiBtn'),$('studioAiStatus'));$('studioCancelTranscribeBtn').onclick=cancelTranscription;
+    $('adjMethod').onchange=e=>{prefs.method=e.target.value;storageSet(PREF_KEY,JSON.stringify(prefs));};
+    document.querySelectorAll('.passages-table tr').forEach(row=>row.addEventListener('click',()=>{const idx=Number(row.dataset.passage);const p=s.rankCandidates[idx];s.activeRank=idx;s.selectedPassage={...p,rankIdx:idx};if(!s.captionsAreTimed)setTranscriptText($('lyricsText').value);document.querySelectorAll('.passages-table tr').forEach(r=>r.classList.toggle('selected',r===row));initStudioPreview(idx);}));
+    setTimeout(()=>initStudioPreview(initialRank),100);
+  } catch(e){
+    show('Audio analysis failed',esc(e.message||String(e)),[]);
+  }
+};
+
+let previewAnim=null, previewAudio=null, previewAudioUrl=null, previewCleanup=null, exportRunning=false;
+let previewSession=0;
+function stopPreview(reason='Preview stopped'){
+  previewSession++;
+  if(previewAnim){cancelAnimationFrame(previewAnim);previewAnim=null;}
+  if(previewAudio){try{previewAudio.pause();previewAudio.removeAttribute('src');previewAudio.load();}catch{}previewAudio=null;}
+  if(previewAudioUrl){URL.revokeObjectURL(previewAudioUrl);previewAudioUrl=null;}
+  if(previewCleanup){try{previewCleanup();}catch{}previewCleanup=null;}
+  const btn=$('previewToggle');if(btn){btn.disabled=true;btn.textContent='Preview stopped';}
+}
+function pausePreviewForInactivePage(){
+  if(!previewAudio)return;
+  if(previewAnim){cancelAnimationFrame(previewAnim);previewAnim=null;}
+  previewAudio.pause();
+  if(previewCleanup?.pausePlayback)previewCleanup.pausePlayback();
+  const status=$('renderStatus');if(status)status.textContent='Paused because the tab is inactive. Press Play to resume.';
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pausePreviewForInactivePage();});
+window.addEventListener('pagehide',()=>stopPreview('Page closed'));
+window.addEventListener('beforeunload',()=>stopPreview('Page closed'));
+function initStudioPreview(rankIdx=s.activeRank){
+  s.activeRank=Math.max(0,Math.min(2,Number(rankIdx)||0));
+  if(s.rankCandidates[s.activeRank])s.selectedPassage={...s.rankCandidates[s.activeRank],rankIdx:s.activeRank};
+  stopPreview();
+  const session=previewSession,canvas=$('renderCanvas');
+  if(!canvas||!s.audio||!s.videos.length||!s.selectedPassage)return;
+  const ctx=canvas.getContext('2d');
+  const duration=Math.max(.1,Number(s.selectedPassage.duration)||0);
+  const sourceStart=Math.max(0,Number(s.selectedPassage.start)||0);
+  // Plain lyrics have estimated timing relative to the selected passage.
+  // Rebuild them whenever a different rank is opened; otherwise rank 2/3
+  // can inherit rank 1's timestamps and show no captions.
+  if(!s.captionsAreTimed)setTranscriptText($('lyricsText').value);
+  const rankItems=getActiveRankVideos();
+  const videos=rankItems.map(item=>{
+    const v=document.createElement('video');
+    v.src=item.previewUrl||(item.previewUrl=URL.createObjectURL(item.file));
+    v.muted=true;v.playsInline=true;v.preload='metadata';v.loop=true;v.setAttribute('playsinline','');
+    v.addEventListener('error',()=>{const status=$('renderStatus');if(status)status.textContent='A source video could not be loaded.';});
+    v.load();return v;
+  });
+  const audio=document.createElement('audio');
+  previewAudioUrl=URL.createObjectURL(s.audio.file);audio.src=previewAudioUrl;audio.preload='auto';audio.setAttribute('playsinline','');previewAudio=audio;audio.load();
+  let playing=false,starting=false,elapsed=0,active=-1,lastDraw=0;
+  const btn=$('previewToggle'),status=$('renderStatus');
+  if(btn){btn.disabled=true;btn.textContent='Loading preview…';}
+  if(status)status.textContent='Loading preview media…';
+  const updateClock=()=>{
+    const time=$('timeCode'),bar=$('progressBar');
+    if(time)time.textContent=`${fmt(elapsed)} / ${fmt(duration)}`;
+    if(bar)bar.style.width=`${Math.min(100,elapsed/duration*100)}%`;
+  };
+  const draw=()=>{
+    if(session!==previewSession)return;
+    const idx=Math.min(videos.length-1,Math.floor(elapsed/5)%videos.length);
+    if(idx!==active){
+      if(active>=0)videos[active].pause();
+      active=idx;
+      const v=videos[idx];
+      if(v){try{v.currentTime=0;}catch{}if(playing&&v.paused)v.play().catch(()=>{});}
+    }
+    const v=videos[active];
+    if(v&&playing&&v.paused&&v.readyState>=2)v.play().catch(()=>{});
+    drawFrame(ctx,canvas.width,canvas.height,videos,{idx:active<0?0:active},elapsed,duration,$('lyricsText').value,s.parsedCaptions,sourceStart+elapsed);
+    updateClock();
+  };
+  const pause=()=>{
+    playing=false;starting=false;
+    if(previewAnim){cancelAnimationFrame(previewAnim);previewAnim=null;}
+    audio.pause();videos.forEach(v=>v.pause());
+    if(btn){btn.disabled=false;btn.textContent='▶ Play preview';}
+    if(status)status.textContent='Paused';
+  };
+  const tick=()=>{
+    if(!playing||session!==previewSession)return;
+    elapsed=Math.max(0,Math.min(duration,audio.currentTime-sourceStart));
+    // Avoid overlapping asynchronous animation callbacks; all drawing here is synchronous.
+    draw();
+    if(elapsed>=duration-.025||audio.ended){
+      pause();elapsed=duration;draw();if(status)status.textContent='Preview finished';
+      if(btn)btn.textContent='↻ Replay preview';return;
+    }
+    previewAnim=requestAnimationFrame(tick);
+  };
+  const play=async()=>{
+    if(session!==previewSession||starting)return;
+    if(playing){pause();return;}
+    if(!Number.isFinite(audio.duration)||audio.readyState<2){if(status)status.textContent='Preview is still loading. Please wait a moment.';return;}
+    starting=true;
+    if(elapsed>=duration-.025)elapsed=0;
+    const target=Math.min(sourceStart+elapsed,Math.max(0,audio.duration-.05));
+    try{
+      audio.currentTime=target;
+      // Start the soundtrack directly in the user gesture before awaiting video decoding.
+      const audioPlay=audio.play();
+      playing=true;
+      if(btn){btn.disabled=true;btn.textContent='Starting…';}
+      await audioPlay;
+      if(session!==previewSession){audio.pause();return;}
+      starting=false;
+      const idx=Math.min(videos.length-1,Math.floor(elapsed/5)%videos.length);
+      active=-1;draw();
+      if(btn){btn.disabled=false;btn.textContent='Ⅱ Pause preview';}
+      if(status)status.textContent='Playing';
+      if(previewAnim)cancelAnimationFrame(previewAnim);
+      previewAnim=requestAnimationFrame(tick);
+    }catch(e){
+      playing=false;starting=false;audio.pause();
+      if(btn){btn.disabled=false;btn.textContent='▶ Play preview';}
+      if(status)status.textContent='Preview playback error: '+(e.message||String(e));
+    }
+  };
+  const ready=()=>{
+    if(session!==previewSession)return;
+    const v=videos[0];
+    if(v&&v.readyState>=2)drawFrame(ctx,canvas.width,canvas.height,videos,{idx:0},0,duration,$('lyricsText').value,s.parsedCaptions,sourceStart);
+    updateClock();
+    if(btn){btn.disabled=false;btn.textContent='▶ Play preview';}
+    if(status)status.textContent='Preview ready. Press Play or tap the video.';
+  };
+  audio.addEventListener('canplay',ready,{once:true});
+  audio.addEventListener('error',()=>{if(session===previewSession){if(status)status.textContent='Audio preview could not be loaded.';if(btn){btn.disabled=true;btn.textContent='Preview unavailable';}}},{once:true});
+  canvas.onclick=play;
+  canvas.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();play();}};
+  if(btn)btn.onclick=play;
+  // Draw the first available frame as soon as it is decoded, without requiring a click/double-click.
+  const first=videos[0];
+  if(first){first.addEventListener('loadeddata',()=>{if(session===previewSession&&!playing)drawFrame(ctx,canvas.width,canvas.height,videos,{idx:0},0,duration,$('lyricsText').value,s.parsedCaptions,sourceStart);},{once:true});}
+  previewCleanup=()=>{videos.forEach(v=>{try{v.pause();v.removeAttribute('src');v.load();}catch{}});};
+  previewCleanup.pauseVideos=()=>videos.forEach(v=>v.pause());
+  previewCleanup.pausePlayback=pause;
+  // Some browsers dispatch canplay before listener registration when cached; handle that case.
+  if(audio.readyState>=3)ready();
+}
+async function executeOfflineExport(){
+  if(exportRunning)return;
+  if(!('VideoEncoder'in window)||!('AudioEncoder'in window)){
+    show('Offline rendering unavailable','This browser does not expose the WebCodecs encoders required for frame-by-frame export. Choose Real-time Stream Recording instead.');return;
+  }
+  exportRunning=true;const exportBtn=$('modalButtons').querySelector('button:last-child');if(exportBtn)exportBtn.disabled=true;stopPreview();
+  const canvas=$('renderCanvas'),status=$('renderStatus'),bar=$('progressBar'),duration=s.selectedPassage.duration;
+  const fps=Math.max(24,Math.min(60,Number(prefs.fps)||30)),dims=prefs.resolution==='720p'?{width:720,height:1280}:{width:1080,height:1920};canvas.width=dims.width;canvas.height=dims.height;
+  const videos=[],objectUrls=[];const rankItems=getActiveRankVideos();let output=null,videoSource=null,audioSource=null;
+  try{
+    status.textContent='Loading offline media encoder…';
+    const mb=await import('https://cdn.jsdelivr.net/npm/mediabunny@1.65.0/+esm');
+    const {Output,WebMOutputFormat,BufferTarget,CanvasSource,AudioBufferSource,Quality}=mb;
+    if(!Output||!WebMOutputFormat||!BufferTarget||!CanvasSource||!AudioBufferSource||!Quality)throw new Error('The offline media encoder did not load correctly.');
+    const format=new WebMOutputFormat(),target=new BufferTarget();output=new Output({format,target});
+    videoSource=new CanvasSource(canvas,{codec:'vp9',quality:new Quality({bitrate:Math.max(4,Math.min(40,Number(prefs.bitrate)||28))*1000000})});
+    audioSource=new AudioBufferSource({codec:'opus',quality:new Quality({bitrate:160000})});
+    output.addVideoTrack(videoSource,{frameRate:fps});output.addAudioTrack(audioSource);await output.start();
+    status.textContent='Decoding soundtrack…';const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error('Web Audio is unavailable.');const ac=new AC();let decoded;
+    try{decoded=await ac.decodeAudioData(await s.audio.file.arrayBuffer());}finally{if(ac.state!=='closed')await ac.close();}
+    const audioFrames=Math.ceil(duration*48000),offline=new OfflineAudioContext(2,audioFrames,48000),source=offline.createBufferSource();source.buffer=decoded;source.connect(offline.destination);source.start(0,s.selectedPassage.start,duration);const rendered=await offline.startRendering();
+    await audioSource.add(rendered);audioSource.close();
+    status.textContent='Preparing source videos…';
+    for(const item of rankItems){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';const u=URL.createObjectURL(item.file);objectUrls.push(u);v.src=u;v.load();await new Promise((resolve,reject)=>{if(v.readyState>=2){resolve();return;}const ok=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(new Error('A source video could not be decoded.'));},cleanup=()=>{v.removeEventListener('loadeddata',ok);v.removeEventListener('error',bad);};v.addEventListener('loadeddata',ok,{once:true});v.addEventListener('error',bad,{once:true});});videos.push(v);}
+    const ctx=canvas.getContext('2d'),frameCount=Math.ceil(duration*fps);let active=-1;
+    const seek=async(v,time)=>{if(Math.abs(v.currentTime-time)<0.012&&v.readyState>=2)return;await new Promise((resolve,reject)=>{const ok=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(new Error('A source video frame could not be decoded.'));},cleanup=()=>{v.removeEventListener('seeked',ok);v.removeEventListener('error',bad);};v.addEventListener('seeked',ok,{once:true});v.addEventListener('error',bad,{once:true});try{v.currentTime=time;}catch(e){cleanup();reject(e);}});};
+    for(let i=0;i<frameCount;i++){
+      const elapsed=i/fps,idx=Math.min(videos.length-1,Math.floor(elapsed/5)%videos.length),v=videos[idx];
+      if(idx!==active){if(active>=0)videos[active].pause();active=idx;v.pause();}
+      const clipDuration=Number.isFinite(v.duration)&&v.duration>0?v.duration:5,clipTime=(elapsed%5)%clipDuration;await seek(v,clipTime);
+      drawFrame(ctx,canvas.width,canvas.height,videos,{idx},elapsed,duration,$('lyricsText').value,s.parsedCaptions,s.selectedPassage.start+elapsed);
+      await videoSource.add(elapsed,1/fps,{keyFrame:i===0||i%(fps*2)===0});
+      if(i%5===0){bar.style.width=`${(i/frameCount)*100}%`;status.textContent=`Rendering frame ${i+1} / ${frameCount} · ${Math.round(i/frameCount*100)}%`;await new Promise(requestAnimationFrame);}
+    }
+    videoSource.close();status.textContent='Finalizing offline video…';await output.finalize();
+    const data=target.buffer;if(!data||!data.byteLength)throw new Error('The offline encoder produced an empty file.');const blob=new Blob([data],{type:format.mimeType});const url=URL.createObjectURL(blob);bar.style.width='100%';status.textContent='Offline render complete';
+    show('Offline export ready',`<p><b>Rank:</b> ${s.activeRank+1}</p><p><b>Format:</b> WebM (VP9 + Opus)</p><p><b>Rendering:</b> ${frameCount} frames at ${fps} FPS</p><p><b>Resolution:</b> ${dims.width} × ${dims.height}</p><p><b>File size:</b> ${size(blob.size)}</p><p>Frames were encoded individually without real-time playback. Browser support and available memory affect the maximum project length.</p>`,[['Download WEBM',()=>{const a=document.createElement('a');a.href=url;a.download=`Freeze_Offline_${Date.now()}.webm`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);},true]]);
+  }catch(err){try{if(output&&output.state!=='finalized'&&output.state!=='canceled')await output.cancel();}catch{}status.textContent='Offline render failed: '+(err.message||err);show('Offline render failed',esc(err.message||String(err))+'<p>Try Real-time Stream Recording if this browser cannot run the offline encoder.</p>');}
+  finally{try{videoSource?.close();}catch{}try{audioSource?.close();}catch{}videos.forEach(v=>{v.pause();v.removeAttribute('src');v.load();});objectUrls.forEach(URL.revokeObjectURL);exportRunning=false;if(exportBtn)exportBtn.disabled=false;}
+}
+
+async function executeExport(){
+  if(exportRunning)return;
+  const requestedDuration=Math.max(.1,Number(s.selectedPassage?.duration)||0);
+  const requestedBitrate=Math.max(4,Math.min(40,Number(prefs.bitrate)||28))*1000000;
+  const estimatedOfflineBytes=(Number(s.audio?.duration)||0)*44100*2*4+requestedDuration*requestedBitrate/8*1.35+1080*1920*4*3+80*1024*1024;
+  const offlineBudget=(DEVICE.memory<=4?192:DEVICE.memory<=6?320:512)*1024*1024;
+  const offlineAvailable=('VideoEncoder'in window)&&('AudioEncoder'in window)&&DEVICE.memory>4&&estimatedOfflineBytes<=offlineBudget;
+  const method=prefs.method==='auto'?(offlineAvailable?'render':'recording'):prefs.method;
+  if(method==='render'){
+    if(!offlineAvailable){show('Offline export exceeds the safe device budget',`<p>Estimated temporary memory: ${size(estimatedOfflineBytes)}; safe budget for this device profile: ${size(offlineBudget)}.</p><p>Choose Auto or Real-time Stream Recording for this export, or export a shorter passage.</p>`);return;}
+    await executeOfflineExport();return;
+  }
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){show('Export unavailable','This browser does not support canvas recording. Try the latest Chrome or Edge.');return;}
+  exportRunning=true;const exportBtn=$('modalButtons').querySelector('button:last-child');if(exportBtn)exportBtn.disabled=true;
+  stopPreview();
+  const canvas=$('renderCanvas'),status=$('renderStatus'),bar=$('progressBar');
+  const duration=Math.max(.1,Number(s.selectedPassage?.duration)||0),fps=Math.max(24,Math.min(60,Number(prefs.fps)||30));
+  const dims=prefs.resolution==='720p'?{width:720,height:1280}:{width:1080,height:1920};canvas.width=dims.width;canvas.height=dims.height;
+  if(!s.audio||!s.videos.length||!s.selectedPassage||!Number.isFinite(duration)||duration<=0){exportRunning=false;if(exportBtn)exportBtn.disabled=false;show('Cannot export','Select a valid passage and make sure audio and videos are loaded.');return;}
+  status.textContent='Preparing media…';bar.style.width='0%';
+  const urls=[],videos=[];const rankItems=getActiveRankVideos();let audio=null,audioCtx=null,stream=null,recorder=null,raf=0;
+  try{
+    const waitEvent=(el,event,fail='error')=>new Promise((resolve,reject)=>{const ok=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(new Error('A media file could not be decoded.'));},cleanup=()=>{el.removeEventListener(event,ok);el.removeEventListener(fail,bad);};el.addEventListener(event,ok,{once:true});el.addEventListener(fail,bad,{once:true});});
+    for(const item of rankItems){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.loop=true;const u=URL.createObjectURL(item.file);urls.push(u);v.src=u;v.load();if(v.readyState<2)await waitEvent(v,'loadeddata');videos.push(v);}
+    audio=document.createElement('audio');audio.preload='auto';const au=URL.createObjectURL(s.audio.file);urls.push(au);audio.src=au;audio.load();if(audio.readyState<2)await waitEvent(audio,'canplay');
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();await audioCtx.resume();const dest=audioCtx.createMediaStreamDestination();const source=audioCtx.createMediaElementSource(audio);source.connect(dest);
+    const canvasStream=canvas.captureStream(fps);stream=new MediaStream([...canvasStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
+    const types=['video/webm;codecs=vp9,opus','video/mp4;codecs=avc1,mp4a.40.2','video/webm','video/mp4'];const mime=types.find(t=>MediaRecorder.isTypeSupported(t));
+    if(!mime)throw new Error('No supported MP4 or WebM recording format was found.');
+    const bitrate=Math.max(4,Math.min(40,Number(prefs.bitrate)||28))*1000000;
+    recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:bitrate,audioBitsPerSecond:192000});
+    const chunks=[];recorder.addEventListener('dataavailable',e=>{if(e.data&&e.data.size)chunks.push(e.data);});
+    const stopped=new Promise((resolve,reject)=>{recorder.addEventListener('stop',resolve,{once:true});recorder.addEventListener('error',e=>reject(e.error||new Error('Recorder failed')),{once:true});});
+    let elapsed=0,active=-1,playingVideo=null,renderError=null;
+    const ctx=canvas.getContext('2d');
+    const selectVideo=async idx=>{if(idx===active)return;videos.forEach(v=>v.pause());active=idx;playingVideo=videos[idx];try{playingVideo.currentTime=0;await playingVideo.play();}catch(e){throw new Error('Could not play source video: '+e.message);}};
+    drawFrame(ctx,canvas.width,canvas.height,videos,{idx:0},0,duration,$('lyricsText').value,s.parsedCaptions,s.selectedPassage.start);
+    await selectVideo(0);
+    recorder.start(1000);
+    const reportedVideoBitrate=Math.round((recorder.videoBitsPerSecond||bitrate)/1000000);
+    const sourceStart=Math.max(0,Number(s.selectedPassage.start)||0);
+    if(sourceStart>=audio.duration)throw new Error('The selected passage starts beyond the end of the audio. Choose another passage.');
+    const targetTime=Math.min(sourceStart,Math.max(0,audio.duration-.05));
+    if(Math.abs(audio.currentTime-targetTime)>.02){
+      await new Promise((resolve,reject)=>{const ok=()=>{cleanup();resolve();},bad=()=>{cleanup();reject(new Error('Could not seek to the selected audio passage.'));},cleanup=()=>{audio.removeEventListener('seeked',ok);audio.removeEventListener('error',bad);};audio.addEventListener('seeked',ok,{once:true});audio.addEventListener('error',bad,{once:true});audio.currentTime=targetTime;});
+    }
+    await audio.play();
+    status.textContent='Recording in real time…';
+    const tick=async()=>{
+      if(recorder.state!=='recording')return;
+      try{
+        if(audio.error)throw new Error('The soundtrack stopped because the browser could not decode it.');
+        elapsed=Math.max(0,Math.min(duration,audio.currentTime-(Number(s.selectedPassage.start)||0)));
+        const idx=Math.min(videos.length-1,Math.floor(elapsed/5)%videos.length);
+        if(idx!==active)await selectVideo(idx);
+        drawFrame(ctx,canvas.width,canvas.height,videos,{idx},elapsed,duration,$('lyricsText').value,s.parsedCaptions,s.selectedPassage.start+elapsed);
+        bar.style.width=`${elapsed/duration*100}%`;status.textContent=`Recording ${fmt(elapsed)} / ${fmt(duration)}`;
+        if(elapsed>=duration||audio.ended){audio.pause();recorder.stop();return;}
+        raf=requestAnimationFrame(tick);
+      }catch(err){renderError=err;audio.pause();if(recorder.state==='recording')recorder.stop();}
+    };
+    raf=requestAnimationFrame(tick);
+    await stopped;
+    if(renderError)throw renderError;
+    const blob=new Blob(chunks,{type:recorder.mimeType});
+    if(!blob.size)throw new Error('The browser produced an empty recording.');
+    const ext=recorder.mimeType.includes('mp4')?'mp4':'webm';const url=URL.createObjectURL(blob);
+    show('Export ready',`<p><b>Rank:</b> ${s.activeRank+1}</p><p><b>Format:</b> ${ext.toUpperCase()}</p><p><b>File size:</b> ${size(blob.size)}</p><p><b>Duration target:</b> ${duration.toFixed(1)} seconds</p><p><b>Encoder video bitrate:</b> about ${reportedVideoBitrate} Mbps (browser-reported; may vary).</p><p>This export uses real-time browser recording. Source clips below the chosen resolution are enlarged, not restored. Timed SRT/VTT captions are rendered when available.</p>`,[['Download '+ext.toUpperCase(),()=>{const a=document.createElement('a');a.href=url;a.download=`Freeze_Export_${Date.now()}.${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);},true]]);
+    status.textContent='Export complete';bar.style.width='100%';
+  }catch(err){cancelAnimationFrame(raf);if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch{}}status.textContent='Export failed: '+(err.message||err);show('Export failed',esc(err.message||String(err)));}
+  finally{cancelAnimationFrame(raf);if(audio){audio.pause();audio.removeAttribute('src');audio.load();}videos.forEach(v=>{v.pause();v.removeAttribute('src');v.load();});if(stream)stream.getTracks().forEach(t=>t.stop());urls.forEach(URL.revokeObjectURL);if(audioCtx&&audioCtx.state!=='closed')await audioCtx.close().catch(()=>{});exportRunning=false;if(exportBtn)exportBtn.disabled=false;}
+}
+
+function showFirstRun(afterAccept=null){
+  $('firstTitle').textContent='Privacy Policy';
+  $('firstBody').innerHTML=`<p><b>Freeze Editorx Privacy Notice</b></p><p>Editing and AI transcription run in your browser. The AI speech model is downloaded from a public model CDN on first use; your selected audio is processed locally after download. It transcribes words but does not judge religious meaning or recitation correctness. Saved projects stay in this browser\'s IndexedDB. Hosting, browser extensions and surrounding software are outside this page\'s control.</p><p><label><input type="checkbox" id="policyCheck"> I agree.</label></p>`;
+  $('firstActions').innerHTML='';
+  const btn=document.createElement('button'); btn.className='primary'; btn.textContent='Agree & Continue';
+  btn.onclick=()=>{
+    if(!$('policyCheck').checked){$('policyCheck').focus();return;}
+    storageSet(CONSENT_KEY,JSON.stringify({date:new Date().toISOString()}));
+    $('firstRun').classList.remove('open');
+    if(typeof afterAccept==='function')afterAccept();else $('continueBtn').click();
+  };
+  $('firstActions').append(btn);
+  $('firstRun').classList.add('open');
+}
+
+// Do not read media metadata or transcript files until the local-processing
+// notice has been accepted. Resume the user's file-picker action afterwards.
+['videoInput','audioInput','lyricsInput'].forEach(id=>{
+  const input=$(id);
+  input.addEventListener('click',event=>{
+    if(storageGet(CONSENT_KEY))return;
+    event.preventDefault();
+    showFirstRun(()=>input.click());
+  },true);
+});
+// The three visible picker buttons must explicitly invoke their matching
+// file input; relying on the surrounding drop zone left the controls inert.
+[['videoDrop','videoInput'],['audioDrop','audioInput'],['lyricsDrop','lyricsInput']].forEach(([dropId,inputId])=>{
+  const drop=$(dropId),input=$(inputId),pick=drop.querySelector('.pick');
+  if(pick)pick.addEventListener('click',()=>input.click());
+  drop.addEventListener('click',event=>{if(event.target===drop||event.target.tagName==='STRONG'||event.target.classList.contains('cloud'))input.click();});
+});
+
+const menuBtn=$('menuBtn'), menu=$('menu');
+menuBtn.onclick=e=>{e.stopPropagation();menu.classList.toggle('open');};
+menu.onclick=e=>e.stopPropagation();
+document.addEventListener('click',e=>{if(!e.target.closest('#menuWrap'))menu.classList.remove('open');});
+
+document.querySelectorAll('.menu button').forEach(b=>b.onclick=e=>{
+  e.stopPropagation(); menu.classList.remove('open');
+  const p=b.dataset.page;
+  if(p==='data') {
+    show('Your Local Data', `<p>Saved projects and their media are stored in this browser\'s IndexedDB. Preferences and consent use local storage when available; a restricted browser session may keep preferences only until this tab closes.</p><p>Clearing browser site data can remove saved projects. Clearing data below removes Freeze Editorx preferences, consent and saved projects.</p><button class="secondary" id="clearFreezeData">Clear Freeze Editorx Data</button>`, []);setTimeout(()=>{const b=$('clearFreezeData');if(b)b.onclick=()=>{[PREF_KEY,CONSENT_KEY,PROJECTS_KEY,MODEL_KEY,'freezeRomanization'].forEach(storageRemove);openProjectDB().then(db=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=()=>{db.close();show('Data cleared','Freeze Editorx preferences, consent and saved projects were cleared. Other website data was left untouched.');};tx.onerror=()=>{db.close();show('Partial clear','Preferences were cleared, but saved projects could not be cleared.');};}).catch(e=>show('Data clear failed',esc(e.message||String(e))));};},0);
+  } else if(p==='projects') {
+    showProjects();
+  } else if(p==='settings') {
+    show('Studio Settings', `
+      <p>Configure export and caption preferences. Changes save automatically on this device. Higher frame rates and bitrates increase file size and device load.</p>
+      <label>Export Method:<br>
+        <select id="setMethod" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+          <option value="auto" ${prefs.method==='auto'?'selected':''}>Auto (choose safest supported method)</option>
+          <option value="recording" ${prefs.method==='recording'?'selected':''}>Real-time Stream Recording</option>
+          <option value="render" ${prefs.method==='render'?'selected':''}>Offline frame-by-frame (WebM · supported browsers)</option>
+        </select>
+      </label>
+      <label>Frame Rate (FPS):<br>
+        <select id="setFps" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+          <option value="30" ${prefs.fps==='30'?'selected':''}>30 FPS</option>
+          <option value="60" ${prefs.fps==='60'?'selected':''}>60 FPS</option>
+        </select>
+      </label>
+      <label>Resolution:<br>
+        <select id="setRes" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+          <option value="720p" ${prefs.resolution==='720p'?'selected':''}>720p (HD)</option>
+          <option value="1080p" ${prefs.resolution==='1080p'?'selected':''}>1080p (FHD)</option>
+        </select>
+      </label>
+      <label>Video Bitrate (Mbps, 4–40):<br>
+        <input id="setBitrate" type="number" min="4" max="40" step="1" value="${Math.max(4,Math.min(40,Number(prefs.bitrate)||28))}" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+      </label>
+      <label>Theme:<br>
+        <select id="setTheme" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+          <option value="light" ${prefs.theme==='light'?'selected':''}>Day Theme (Light)</option>
+          <option value="dark" ${prefs.theme==='dark'?'selected':''}>Dark Theme</option>
+        </select>
+      </label>
+      <h4 style="margin:8px 0 4px">Caption appearance</h4>
+      <label>Font:<br><select id="setCaptionFont" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+        <option value="arabic" ${prefs.captionFont==='arabic'?'selected':''}>Arabic / Urdu display</option><option value="sans" ${prefs.captionFont==='sans'?'selected':''}>Sans serif</option><option value="serif" ${prefs.captionFont==='serif'?'selected':''}>Serif</option>
+      </select></label>
+      <label>Text size (% of video width): <span id="captionSizeValue">${Math.round(prefs.captionScale*100)}%</span><br><input id="setCaptionScale" type="range" min="4" max="9.5" step="0.1" value="${prefs.captionScale*100}" style="width:100%;margin:6px 0 12px"></label>
+      <label>Vertical position:<br><select id="setCaptionPosition" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+        <option value="0.24" ${Math.abs(prefs.captionPosition-.24)<.02?'selected':''}>Upper</option><option value="0.52" ${Math.abs(prefs.captionPosition-.52)<.02?'selected':''}>Center</option><option value="0.78" ${Math.abs(prefs.captionPosition-.78)<.02?'selected':''}>Lower</option>
+      </select></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Text colour<br><input id="setCaptionColor" type="color" value="${prefs.captionColor}" style="width:100%;height:40px"></label><label>Active word colour<br><input id="setHighlightColor" type="color" value="${prefs.captionHighlightColor}" style="width:100%;height:40px"></label></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="setCaptionHighlight" type="checkbox" ${prefs.captionHighlight?'checked':''}> Highlight the current word</label>
+      <label>Text animation:<br><select id="setCaptionAnimation" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
+        <option value="none" ${prefs.captionAnimation==='none'?'selected':''}>None</option><option value="fade" ${prefs.captionAnimation==='fade'?'selected':''}>Fade</option><option value="pop" ${prefs.captionAnimation==='pop'?'selected':''}>Soft pop</option>
+      </select></label>
+      <label>Word spacing (px): <span id="captionSpacingValue">${prefs.captionSpacing}</span><br><input id="setCaptionSpacing" type="range" min="0" max="28" step="1" value="${prefs.captionSpacing}" style="width:100%;margin:6px 0 12px"></label>
+      <div style="display:flex;gap:18px;flex-wrap:wrap"><label><input id="setCaptionOutline" type="checkbox" ${prefs.captionOutline?'checked':''}> Outline</label><label><input id="setCaptionShadow" type="checkbox" ${prefs.captionShadow?'checked':''}> Shadow</label></div>
+      <p id="settingsSaveStatus" class="hint" role="status" aria-live="polite">Changes save automatically on this device.</p>
+      <button class="primary" id="settingsDoneBtn" type="button">Done</button>
+    `, []);
+    // Bind controls from inside this closure. Inline HTML handlers cannot access
+    // prefs/$ because both are private to this IIFE; that was why Save Settings failed.
+    const settingsIds=['setMethod','setFps','setRes','setBitrate','setTheme','setCaptionFont','setCaptionScale','setCaptionPosition','setCaptionColor','setHighlightColor','setCaptionHighlight','setCaptionAnimation','setCaptionSpacing','setCaptionOutline','setCaptionShadow'];
+    const saveSettingsNow=()=>{
+      const method=$('setMethod'),fps=$('setFps'),res=$('setRes'),bitrate=$('setBitrate'),theme=$('setTheme');
+      if(!method||!fps||!res||!bitrate||!theme)return false;
+      const rawBitrate=Number(bitrate.value);
+      if(!Number.isFinite(rawBitrate)||rawBitrate<4||rawBitrate>40){
+        const status=$('settingsSaveStatus');if(status)status.textContent='Bitrate must be between 4 and 40 Mbps.';
+        bitrate.setCustomValidity('Enter a value from 4 to 40 Mbps.');return false;
+      }
+      bitrate.setCustomValidity('');
+      prefs.method=['auto','recording','render'].includes(method.value)?method.value:'auto';
+      prefs.fps=fps.value==='60'?'60':'30';
+      prefs.resolution=res.value==='720p'?'720p':'1080p';
+      prefs.bitrate=Math.round(rawBitrate);
+      prefs.theme=theme.value==='dark'?'dark':'light';
+      prefs.captionFont=$('setCaptionFont').value;
+      prefs.captionScale=Number($('setCaptionScale').value)/100;
+      prefs.captionPosition=Number($('setCaptionPosition').value);
+      prefs.captionColor=$('setCaptionColor').value;
+      prefs.captionHighlightColor=$('setHighlightColor').value;
+      prefs.captionHighlight=$('setCaptionHighlight').checked;
+      prefs.captionAnimation=$('setCaptionAnimation').value;
+      prefs.captionSpacing=Number($('setCaptionSpacing').value);
+      prefs.captionOutline=$('setCaptionOutline').checked;
+      prefs.captionShadow=$('setCaptionShadow').checked;
+      prefs.qualityProfileVersion=3;
+      if(!storageSet(PREF_KEY,JSON.stringify(prefs))){
+        const status=$('settingsSaveStatus');if(status)status.textContent='Kept for this tab session; browser storage is unavailable or full.';
+      }else{
+        const status=$('settingsSaveStatus');if(status)status.textContent='Saved automatically on this device.';
+      }
+      document.documentElement.dataset.theme=prefs.theme;
+      const themeBtn=$('themeBtn');if(themeBtn)themeBtn.textContent=prefs.theme==='dark'?'☀':'☾';
+      return true;
+    };
+    settingsIds.forEach(id=>{const el=$(id);if(el){el.addEventListener('change',saveSettingsNow);el.addEventListener('input',saveSettingsNow);}});
+    $('setCaptionScale').addEventListener('input',()=>{$('captionSizeValue').textContent=`${Number($('setCaptionScale').value).toFixed(1)}%`;});
+    $('setCaptionSpacing').addEventListener('input',()=>{$('captionSpacingValue').textContent=$('setCaptionSpacing').value;});
+    const done=$('settingsDoneBtn');if(done)done.addEventListener('click',()=>{if(saveSettingsNow())closeModal();});
+  } else if(p==='privacy') {
+    show('Privacy Policy', `<p><b>Effective date: 1 November 2026</b></p>
+      <p>Freeze Editorx processes selected videos, audio and captions in your browser. Files are not intentionally uploaded by the editor. Local transcription downloads the Whisper model and required code from public CDNs; your audio is processed on your device after download. Saved projects are stored in this browser's IndexedDB, while settings and consent are stored in local storage. They are not synced to our servers. Your hosting provider may collect ordinary server and security logs. Browser extensions, operating-system backups and device access are outside this app's control. Clearing browser data can permanently delete local projects. Do not use a shared device for private recordings. If analytics, cloud storage, remote AI or other third-party services are added, this policy must be updated before those features are enabled. You can remove saved projects in Your Projects or clear app data in Your Data. Contact the site owner through the website where you obtained this app for privacy questions. This notice describes the current local-first build and is not a promise about future versions. Review it again after updates, especially before using any cloud or sharing feature.</p>`, []);
+  } else {
+    show('Tutorial & Terms of Use', `<h4>Quick tutorial</h4>
+      <ol><li>Upload 2–12 background videos and one audio file.</li><li>Optionally paste lyrics or upload TXT, SRT, VTT or LRC captions.</li><li>Choose a transcription language and model, then transcribe locally. Review every word.</li><li>Press Continue, choose one of the three ranks, then preview it.</li><li>Adjust caption and export settings, then export and watch the full file before sharing.</li></ol>
+      <h4>Detailed Terms of Use</h4>
+      <p>Use Freeze Editorx only for lawful, respectful purposes. You must own or have permission to use every recording, video, image, font and caption you import. You are responsible for copyright, privacy, publicity, platform and religious-content considerations. Do not upload private recordings without the consent of the people recorded. Transcription and automatic timing can make mistakes, especially with singing, music, accents and overlapping voices; you must correct captions and verify the final video. Loudness ranking is a technical estimate, not an assessment of artistic or religious quality. Export quality depends on source resolution, browser support, device memory, codec and selected settings; no particular result is guaranteed. Keep backups of important source files and exported work. The app is provided as-is and may contain defects or become unavailable. You are responsible for checking exports before publishing. Do not attempt to disrupt, reverse engineer for abuse, or misuse the service. These terms may be updated when features change. If you do not accept them, do not use the app. You may stop using the editor at any time and delete locally saved projects through the app controls. You are responsible for ensuring that your use complies with the laws that apply where you live.</p>`, []);
+  }
+});
+
+// Optional, lightweight UI sound effects (generated locally; no audio files or network calls).
+let uiAudioContext=null;
+function playUiSound(kind='tap'){
+  if(prefs.soundEffects===false)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    uiAudioContext=uiAudioContext||new AC();if(uiAudioContext.state==='suspended')uiAudioContext.resume();
+    const osc=uiAudioContext.createOscillator(),gain=uiAudioContext.createGain(),now=uiAudioContext.currentTime;
+    const tones=kind==='success'?[660,880]:kind==='toggle'?[520,700]:[420,520];
+    osc.type='sine';osc.frequency.setValueAtTime(tones[0],now);osc.frequency.exponentialRampToValueAtTime(tones[1],now+.065);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.035,now+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+.11);
+    osc.connect(gain);gain.connect(uiAudioContext.destination);osc.start(now);osc.stop(now+.12);
+  }catch{}
+}
+document.addEventListener('click',e=>{
+  const target=e.target.closest('button,.drop');if(!target||target.disabled||target.id==='soundBtn')return;
+  playUiSound(target.id==='themeBtn'?'toggle':'tap');
+},true);
+const soundBtn=$('soundBtn');if(soundBtn){
+  const syncSound=()=>{soundBtn.textContent=prefs.soundEffects===false?'🔇':'🔊';soundBtn.title=prefs.soundEffects===false?'Sound effects off':'Sound effects on';soundBtn.setAttribute('aria-pressed',String(prefs.soundEffects!==false));};
+  syncSound();soundBtn.onclick=e=>{e.stopPropagation();prefs.soundEffects=prefs.soundEffects===false;storageSet(PREF_KEY,JSON.stringify(prefs));syncSound();if(prefs.soundEffects)playUiSound('toggle');};
+}
+
+$('themeBtn').onclick=e=>{
+  e.stopPropagation();
+  prefs.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=prefs.theme;
+  storageSet(PREF_KEY,JSON.stringify(prefs));
+  $('themeBtn').textContent=prefs.theme==='dark'?'☀':'☾';
+};
+
+renderUI();
+})();
+</script>
+</body>
+</html>
