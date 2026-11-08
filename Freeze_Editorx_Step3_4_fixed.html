@@ -251,27 +251,27 @@ button { font: inherit; touch-action: manipulation; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;">
         <label class="hint" for="transcriptionLanguage">Recognition language</label>
         <select id="transcriptionLanguage" aria-label="Transcription language" style="padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);">
-          <option value="auto">Auto-detect</option><option value="urdu">Urdu (forced)</option><option value="arabic">Arabic (forced)</option><option value="hindi">Hindi (forced)</option><option value="english">English (forced)</option>
+          <option value="" disabled selected>Choose language</option><option value="urdu">Urdu</option><option value="hindi">Hindi</option><option value="arabic">Arabic</option><option value="english">English</option>
         </select>
         <label class="hint" for="transcriptionModel">Whisper model</label>
         <select id="transcriptionModel" aria-label="Whisper model" style="padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);">
           <option value="auto">Auto (device-aware)</option><option value="Xenova/whisper-tiny">Tiny · lightest</option><option value="Xenova/whisper-base">Base</option><option value="Xenova/whisper-small">Small · more demanding</option>
         </select>
-        <label class="hint" for="romanizationToggle" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;"><input id="romanizationToggle" type="checkbox" checked> Romanisation (output script) <span class="blue">ON</span></label>
+        <label class="hint" for="romanizationToggle" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;"><input id="romanizationToggle" type="checkbox"> Romanisation (selected language only) <span class="blue">OFF</span></label>
         <button class="secondary" type="button" id="aiTranscribeBtn">✦ AI transcribe locally</button>
         <button class="secondary" type="button" id="alignLyricsBtn" hidden>Align supplied lyrics to audio</button>
         <button class="secondary" type="button" id="useAiTranscriptBtn" hidden>Use AI transcript</button>
         <button class="secondary" type="button" id="cancelTranscribeBtn" disabled>Cancel</button>
       </div>
-      <div class="hint" id="aiStatus" role="status" aria-live="polite" style="margin-top:7px;">Auto asks Whisper to choose a language; the current pipeline does not report its detected language separately. Urdu, Hindi, Arabic and English force the selected recognition language. Romanisation changes output script only. Singing, music and mixed-language recordings can still reduce accuracy, so review every word.</div>
+      <div class="hint" id="aiStatus" role="status" aria-live="polite" style="margin-top:7px;">Choose Urdu, Hindi, Arabic or English. Whisper uses the selected recognition language. Romanisation converts only that language script; English is unchanged. Review generated text and timings before use.</div>
       <details id="transcriptionDiagnostics" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);">
         <summary style="cursor:pointer;font-weight:650;">Advanced · original Whisper transcript and diagnostics</summary>
         <div id="transcriptionDiagnosticMeta" class="hint" style="margin:8px 0;">No AI transcription has been run in this session yet.</div>
-        <label class="hint" for="rawTranscriptionText">Unmodified text returned by Whisper (before Romanisation and vocabulary correction)</label>
+        <label class="hint" for="rawTranscriptionText">Unmodified text returned by Whisper (before output-script conversion)</label>
         <textarea id="rawTranscriptionText" class="transcript" readonly rows="6" style="width:100%;margin-top:5px;" placeholder="The original model output will appear here after transcription."></textarea>
         <details id="chunkDiagnosticsDisclosure" style="margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:8px;">
           <summary style="cursor:pointer;font-weight:600;">Individual Whisper chunk outputs</summary>
-          <p class="hint" style="margin:7px 0;">Each entry shows the exact raw text returned for that audio segment, before chunk merging, Romanisation or vocabulary correction. Repetition statistics help locate where errors begin.</p>
+          <p class="hint" style="margin:7px 0;">Each entry shows the exact raw text returned for that audio segment, before chunk merging or output-script conversion. Repetition statistics help locate where errors begin.</p>
           <div id="chunkTranscriptionDiagnostics" style="display:grid;gap:7px;"><p class="hint">Chunk details will appear after the next transcription.</p></div>
         </details>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;">
@@ -420,8 +420,8 @@ function removeTimingCuePreservingBreak(cues,index){
 }
 function parseLrcCaptions(text,duration){
   const out=[];for(const line of String(text||'').split(/\r?\n/)){
-    const matches=[...line.matchAll(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g)];
-    const caption=line.replace(/\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g,'').trim();
+    const matches=[...line.matchAll(/\[(\d+):(\d{2})(?:\.(\d{1,3}))?\]/g)];
+    const caption=line.replace(/\[\d+:\d{2}(?:\.\d{1,3})?\]/g,'').trim();
     if(!caption)continue;for(const m of matches){const seconds=Number(m[2]),fraction=m[3]?Number('0.'+m[3]):0,start=Number(m[1])*60+seconds+fraction;if(seconds<60&&Number.isFinite(start)&&(!Number.isFinite(duration)||duration<=0||start<duration))out.push({start,end:start+3,text:caption});}
   }
   out.sort((a,b)=>a.start-b.start);const valid=[];for(let i=0;i<out.length;i++){const next=out.slice(i+1).find(c=>c.start>out[i].start);const naturalEnd=next?next.start:out[i].start+4;const cap=Number.isFinite(duration)&&duration>0?duration:Infinity;const end=Math.min(cap,naturalEnd);if(end>out[i].start)valid.push({...out[i],end});}
@@ -451,11 +451,17 @@ function captionsForText(text,duration,startOffset=0){
 function makeWordCues(segments){
   const out=[];
   for(const seg of segments||[]){
-    const words=String(seg.text||'').trim().split(/\s+/).filter(Boolean);
+    const words=String(seg.text||'').trim().split(/\s+/u).filter(Boolean);
     if(!words.length||!(seg.end>seg.start))continue;
     const weights=words.map(captionWordWeight),sum=weights.reduce((a,b)=>a+b,0);
     let t=seg.start;
-    words.forEach((word,i)=>{const end=i===words.length-1?seg.end:t+(seg.end-seg.start)*weights[i]/sum;out.push({start:t,end,text:word});t=end;});
+    words.forEach((word,i)=>{
+      const end=i===words.length-1?seg.end:t+(seg.end-seg.start)*weights[i]/sum;
+      // Preserve provenance on genuine one-word timestamp cues. Splitting a
+      // phrase-level cue is only an estimate, never a Whisper word anchor.
+      out.push({...seg,start:t,end,text:word,timingSource:words.length===1?(seg.timingSource||'unknown'):'estimated'});
+      t=end;
+    });
   }
   return out;
 }
@@ -475,36 +481,73 @@ function compareTranscriptWords(referenceText,candidateText){
   return {referenceWords:ref.length,candidateWords:cand.length,edits:previous[cand.length],wer:previous[cand.length]/ref.length};
 }
 function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
-  const ref=String(referenceText||'').trim().split(/\s+/u).filter(Boolean);
-  const observed=(Array.isArray(asrWordCues)?asrWordCues:[]).filter(c=>Number.isFinite(Number(c.start))&&Number.isFinite(Number(c.end))&&Number(c.end)>Number(c.start)&&String(c.text||'').trim()).sort((a,b)=>Number(a.start)-Number(b.start)||Number(a.end)-Number(b.end));
+  // Keep punctuation attached to the verified lyric token, while retaining
+  // source line boundaries as soft evidence for repeated stanzas/choruses.
+  const ref=[];String(referenceText||'').replace(/^\uFEFF/,'').split(/\r?\n/u).forEach((line,lineIndex)=>{
+    for(const text of line.trim().split(/\s+/u).filter(Boolean))ref.push({text,key:normalizedAlignWord(text),lineIndex});
+  });
+  const observed=[];
+  for(const cue of (Array.isArray(asrWordCues)?asrWordCues:[]).slice().sort((a,b)=>Number(a.start)-Number(b.start)||Number(a.end)-Number(b.end))){
+    const start=Number(cue.start),end=Number(cue.end),parts=String(cue.text||'').trim().split(/\s+/u).filter(Boolean);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||!parts.length)continue;
+    const weights=parts.map(captionWordWeight),sum=weights.reduce((x,y)=>x+y,0);let cursor=start;
+    parts.forEach((text,index)=>{
+      const next=index===parts.length-1?end:cursor+(end-start)*weights[index]/sum;
+      observed.push({start:cursor,end:next,text,key:normalizedAlignWord(text),timingSource:parts.length===1?(cue.timingSource||'unknown'):'estimated',reliable:parts.length===1&&cue.timingSource==='whisper'});
+      cursor=next;
+    });
+  }
   if(!ref.length||!observed.length)throw new Error('Add lyrics and run transcription with usable word timestamps before alignment.');
+  if(!observed.some(c=>c.reliable))throw new Error('Whisper did not provide trustworthy word-level timestamps for this audio. No word timing was applied; use manually timed subtitles or review the audio in the timing editor.');
   if(ref.length*observed.length>1800000)throw new Error('This text is too long for the local alignment pass. Split the lyrics into smaller sections.');
-  const a=ref.map(normalizedAlignWord),b=observed.map(c=>normalizedAlignWord(c.text)),cols=b.length+1;
-  const cost=new Uint32Array((a.length+1)*cols),back=new Uint8Array(cost.length);
-  for(let i=1;i<=a.length;i++){cost[i*cols]=i;back[i*cols]=2;}
-  for(let j=1;j<=b.length;j++){cost[j]=j;back[j]=3;}
-  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++){
-    const k=i*cols+j,diag=cost[(i-1)*cols+j-1]+(a[i-1]&&a[i-1]===b[j-1]?0:3),del=cost[(i-1)*cols+j]+1,ins=cost[i*cols+j-1]+1;
+
+  // Sequence alignment is monotonic. A small line-start/pause penalty breaks
+  // ties between repeated lines without allowing a pause to reorder lyrics.
+  const cols=observed.length+1,rows=ref.length+1,cost=new Float64Array(rows*cols),back=new Uint8Array(rows*cols);
+  for(let i=1;i<rows;i++){cost[i*cols]=i*10;back[i*cols]=2;}
+  for(let j=1;j<cols;j++){cost[j]=j*10;back[j]=3;}
+  for(let i=1;i<rows;i++)for(let j=1;j<cols;j++){
+    const r=ref[i-1],o=observed[j-1],prev=observed[j-2],pause=prev?o.start-prev.end:0;
+    const exact=!!r.key&&r.key===o.key;
+    const lineBoundary=i===1||ref[i-2].lineIndex!==r.lineIndex;
+    const boundaryPenalty=lineBoundary&&pause<0.22?2:(!lineBoundary&&pause>0.85?1:0);
+    const diag=cost[(i-1)*cols+j-1]+(exact?boundaryPenalty:30),del=cost[(i-1)*cols+j]+10,ins=cost[i*cols+j-1]+10,k=i*cols+j;
     if(diag<=del&&diag<=ins){cost[k]=diag;back[k]=1;}else if(del<=ins){cost[k]=del;back[k]=2;}else{cost[k]=ins;back[k]=3;}
   }
-  const anchor=new Array(a.length).fill(null);let i=a.length,j=b.length,matched=0;
-  while(i>0||j>0){const op=back[i*cols+j];if(i>0&&j>0&&op===1){if(a[i-1]&&a[i-1]===b[j-1]){anchor[i-1]=observed[j-1];matched++;}i--;j--;}else if(i>0&&(j===0||op===2))i--;else if(j>0)j--;else break;}
-  const limit=Number.isFinite(Number(duration))&&Number(duration)>0?Number(duration):Math.max(...observed.map(c=>Number(c.end)));
-  const out=new Array(ref.length);let lastEnd=0;
+  const anchor=new Array(ref.length).fill(null);let i=ref.length,j=observed.length,matched=0;
+  while(i>0||j>0){const op=back[i*cols+j];if(i>0&&j>0&&op===1){if(ref[i-1].key&&ref[i-1].key===observed[j-1].key&&observed[j-1].reliable){anchor[i-1]=observed[j-1];matched++;}i--;j--;}else if(i>0&&(j===0||op===2))i--;else if(j>0)j--;else break;}
+
+  if(!matched)throw new Error('No exact lyric words could be anchored to Whisper word timestamps. Your verified lyrics were left unchanged and no timings were applied.');
+  const limit=Number.isFinite(Number(duration))&&Number(duration)>0?Number(duration):Math.max(...observed.map(c=>c.end));
+  const durations=observed.filter(c=>c.reliable).map(c=>c.end-c.start).filter(x=>x>0&&x<2).sort((a,b)=>a-b);
+  const typical=durations.length?durations[Math.floor(durations.length/2)]:0.32;
+  const out=new Array(ref.length);let lastEnd=0,estimatedWords=0,untimedWords=0;
   for(let k=0;k<ref.length;){
-    if(anchor[k]){const source=anchor[k],start=Math.min(limit,Math.max(lastEnd,Math.max(0,Number(source.start)))),end=Math.min(limit,Math.max(start+.04,Number(source.end)));out[k]={start,end,text:ref[k],anchor:true};lastEnd=end;k++;continue;}
-    const runStart=k;while(k<ref.length&&!anchor[k])k++;const runEnd=k,previous=runStart?out[runStart-1]:null,next=anchor[runEnd]||null;
-    let start=previous?previous.end:0,end=next?Math.max(start,next.start):limit;
-    if(end-start<(runEnd-runStart)*.045){end=Math.min(limit,start+(runEnd-runStart)*.12);}
-    const weights=ref.slice(runStart,runEnd).map(w=>Math.max(1,[...w].length)),sum=weights.reduce((x,y)=>x+y,0);let cursor=start;
-    for(let x=runStart;x<runEnd;x++){const nextTime=x===runEnd-1?end:cursor+(end-start)*weights[x-runStart]/sum;out[x]={start:Math.min(limit,cursor),end:Math.min(limit,Math.max(cursor+.035,nextTime)),text:ref[x],anchor:false};cursor=out[x].end;}
+    if(anchor[k]){const source=anchor[k];out[k]={start:Math.max(0,source.start),end:Math.min(limit,source.end),text:ref[k].text,anchor:true,timingSource:'whisper'};lastEnd=out[k].end;k++;continue;}
+    const runStart=k;while(k<ref.length&&!anchor[k])k++;const runEnd=k,count=runEnd-runStart,previous=runStart?out[runStart-1]:null,next=anchor[runEnd]||null;
+    // Estimate only a short speech-sized interval adjacent to a known anchor;
+    // do not distribute words through long silences between anchors.
+    const desiredSpan=count*typical,available=Math.max(0,(next?next.start:limit)-(previous?previous.end:0));
+    if(desiredSpan>2.5||available<count*0.025){untimedWords+=count;k=runEnd;continue;}
+    const span=Math.min(desiredSpan,available);
+    let start=previous?previous.end:(next?Math.max(0,next.start-span):0);
+    let end=next?Math.min(next.start,start+span):Math.min(limit,start+span);
+    if(end-start<count*0.025){untimedWords+=count;k=runEnd;continue;}
+    const weights=ref.slice(runStart,runEnd).map(x=>captionWordWeight(x.text)),sum=weights.reduce((x,y)=>x+y,0);let cursor=start;
+    for(let x=runStart;x<runEnd;x++){
+      const nextTime=x===runEnd-1?end:cursor+(end-start)*weights[x-runStart]/sum;
+      if(nextTime>cursor)out[x]={start:Math.max(0,cursor),end:Math.min(limit,nextTime),text:ref[x].text,anchor:false,timingSource:'estimated'};cursor=nextTime;estimatedWords++;
+    }
     lastEnd=out[runEnd-1]?.end||lastEnd;
   }
-  return {cues:out.filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start),matchedWords:matched,totalWords:ref.length,coverage:matched/Math.max(1,ref.length)};
+  const cues=out.filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start&&c.end<=limit+1e-6);
+  const repeatedLines=new Set();const lineTexts=new Map();for(const token of ref){const key=token.lineIndex;lineTexts.set(key,[...(lineTexts.get(key)||[]),token.key].join(' '));}
+  for(const [line,text] of lineTexts){if(text&&[...lineTexts.values()].filter(x=>x===text).length>1)repeatedLines.add(line);}
+  return {cues,matchedWords:matched,estimatedWords,untimedWords,totalWords:ref.length,coverage:matched/Math.max(1,ref.length),repeatedLineCount:repeatedLines.size,anchorSource:'Whisper word timestamps only'};
 }
 function normalizeCaptionCues(cues,duration=Infinity){
   const max=Number.isFinite(Number(duration))&&Number(duration)>0?Number(duration):Infinity;
-  return (Array.isArray(cues)?cues:[]).map(c=>({start:Number(c.start),end:Number(c.end),text:String(c.text||'').trim()}))
+  return (Array.isArray(cues)?cues:[]).map(c=>({...c,start:Number(c.start),end:Number(c.end),text:String(c.text||'').trim()}))
     .filter(c=>Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start&&c.start>=0&&c.start<max&&c.text)
     .map(c=>({...c,end:Math.min(c.end,max)})).filter(c=>c.end>c.start).sort((a,b)=>a.start-b.start||a.end-b.end);
 }
@@ -527,7 +570,9 @@ function formatCaptionClock(seconds,decimal=','){
 }
 function serializeCaptions(cues,format,duration=Infinity){
   const valid=normalizeCaptionCues(cues,duration).filter(c=>Math.round(c.end*1000)>Math.round(c.start*1000));if(!valid.length)throw new Error('There are no valid caption cues to export.');
-  if(format==='txt')return valid.map(c=>c.text).join(' ');
+  if(format==='txt'){
+    let output='';for(const cue of valid){if(output)output+=cue.lineBreakBefore?'\n':' ';output+=cue.text;}return output;
+  }
   if(format==='lrc'){
     const rows=[];for(let i=0;i<valid.length;i+=3){const c=valid[i],totalCentiseconds=Math.round(c.start*100),mins=Math.floor(totalCentiseconds/6000),seconds=(totalCentiseconds%6000/100).toFixed(2);rows.push(`[${String(mins).padStart(2,'0')}:${seconds.padStart(5,'0')}]${valid.slice(i,i+3).map(x=>x.text).join(' ')}`);}return rows.join('\n');
   }
@@ -541,7 +586,7 @@ function downloadCaptions(format){
 function renderTimingEditor(){
   const host=$('timingCueRows');if(!host)return;
   const cues=Array.isArray(s.parsedCaptions)?s.parsedCaptions:[];
-  host.innerHTML=cues.map((c,i)=>`<div class="timing-cue-row" data-cue-row="${i}"><span class="timing-cue-index">${i+1}</span><label>Word <input aria-label="Caption ${i+1} text" data-cue-index="${i}" data-cue-field="text" type="text" value="${esc(c.text)}"></label><label>Start (s) <input aria-label="Caption ${i+1} start seconds" data-cue-index="${i}" data-cue-field="start" type="number" min="0" step="0.01" value="${Number(c.start).toFixed(2)}"></label><label>End (s) <input aria-label="Caption ${i+1} end seconds" data-cue-index="${i}" data-cue-field="end" type="number" min="0" step="0.01" value="${Number(c.end).toFixed(2)}"></label><button type="button" class="secondary" data-cue-delete="${i}" aria-label="Delete caption ${i+1}">Delete</button></div>`).join('');
+  host.innerHTML=cues.map((c,i)=>{const source=c.timingSource==='whisper'?'Whisper':c.timingSource==='estimated'?'Estimated':c.timingSource==='segment'?'Segment estimate':c.timingSource==='manual'?'Manual':'Unverified';return `<div class="timing-cue-row" data-cue-row="${i}" title="${source} timing"><span class="timing-cue-index">${i+1}</span><label>Word · ${source} <input aria-label="Caption ${i+1} text" data-cue-index="${i}" data-cue-field="text" type="text" value="${esc(c.text)}"></label><label>Start (s) <input aria-label="Caption ${i+1} start seconds" data-cue-index="${i}" data-cue-field="start" type="number" min="0" step="0.01" value="${Number(c.start).toFixed(2)}"></label><label>End (s) <input aria-label="Caption ${i+1} end seconds" data-cue-index="${i}" data-cue-field="end" type="number" min="0" step="0.01" value="${Number(c.end).toFixed(2)}"></label><button type="button" class="secondary" data-cue-delete="${i}" aria-label="Delete caption ${i+1}">Delete</button></div>`;}).join('');
   const count=$('timingCueCount');if(count)count.textContent=String(cues.length);
 }
 function syncTranscriptFromTimingEditor(){
@@ -553,13 +598,13 @@ function syncTranscriptFromTimingEditor(){
 function updateTimingEditorField(input){
   const index=Number(input.dataset.cueIndex),field=input.dataset.cueField,cue=s.parsedCaptions?.[index];if(!cue)return;
   const next={...cue};if(field==='text'){next.text=input.value.trim();if(!next.text){input.value=cue.text;$('studioAiStatus').textContent='Caption text cannot be empty.';return;}}
-  else{const value=Number(input.value);if(!Number.isFinite(value)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent='Enter valid start and end times in seconds.';return;}next[field]=value;const limit=Number(s.audio?.duration);if(next.start<0||next.end<=next.start||(Number.isFinite(limit)&&limit>0&&next.end>limit)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent=`Caption ${index+1} needs 0 ≤ start < end${Number.isFinite(limit)&&limit>0?` ≤ ${limit.toFixed(2)} seconds`:''}.`;return;}}
+  else{next.timingSource='manual';const value=Number(input.value);if(!Number.isFinite(value)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent='Enter valid start and end times in seconds.';return;}next[field]=value;const limit=Number(s.audio?.duration);if(next.start<0||next.end<=next.start||(Number.isFinite(limit)&&limit>0&&next.end>limit)){input.value=Number(cue[field]).toFixed(2);$('studioAiStatus').textContent=`Caption ${index+1} needs 0 ≤ start < end${Number.isFinite(limit)&&limit>0?` ≤ ${limit.toFixed(2)} seconds`:''}.`;return;}}
   s.parsedCaptions[index]=next;if(field!=='text')s.parsedCaptions.sort((a,b)=>a.start-b.start||a.end-b.end);syncTranscriptFromTimingEditor();if(field!=='text')renderTimingEditor();$('studioAiStatus').textContent=`Updated caption ${index+1}. Start and end times are seconds on the original audio.`;
 }
 function addTimingCue(){
   const limit=Number(s.audio?.duration)||Infinity,last=[...(s.parsedCaptions||[])].sort((a,b)=>a.start-b.start).at(-1),start=last?Math.max(last.end,Number(last.start)+.01):0,end=Math.min(limit,start+1);
   if(!(end>start)){$('studioAiStatus').textContent='There is no time left in this audio for another cue.';return;}
-  s.parsedCaptions.push({start,end,text:'word'});syncTranscriptFromTimingEditor();renderTimingEditor();$('studioAiStatus').textContent='Added a word cue. Edit its text, start, and end seconds.';
+  s.parsedCaptions.push({start,end,text:'word',timingSource:'manual'});syncTranscriptFromTimingEditor();renderTimingEditor();$('studioAiStatus').textContent='Added a word cue. Edit its text, start, and end seconds.';
 }
 function deleteTimingCue(index){if(!Number.isInteger(index)||index<0||index>=s.parsedCaptions.length)return;removeTimingCuePreservingBreak(s.parsedCaptions,index);syncTranscriptFromTimingEditor();renderTimingEditor();}
 const romanizationToggle=$('romanizationToggle');
@@ -577,8 +622,10 @@ function setTranscriptText(text, timedCaptions=null){
   const srt=parseTimedCaptions(value),lrc=parseLrcCaptions(value,s.audio?.duration||60);
   let timingSource='estimated from text';
   if(Array.isArray(timedCaptions)&&timedCaptions.length){
-    s.timingTemplate=normalizeCaptionCues(makeWordCues(timedCaptions.map(c=>({start:Number(c.start),end:Number(c.end),text:String(c.text||'')}))),s.audio?.duration);
-    s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=true;timingSource='Whisper word timestamps (review accuracy)';
+    s.timingTemplate=normalizeCaptionCues(makeWordCues(timedCaptions.map(c=>({...c,start:Number(c.start),end:Number(c.end),text:String(c.text||'')}))),s.audio?.duration);
+    s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=true;
+    const whisperCount=s.timingTemplate.filter(c=>c.timingSource==='whisper').length,estimatedCount=s.timingTemplate.filter(c=>c.timingSource==='estimated').length,otherCount=s.timingTemplate.length-whisperCount-estimatedCount;
+    timingSource=`${whisperCount} Whisper word timestamps · ${estimatedCount} estimated · ${otherCount} segment/unverified`;
   }else if(srt.length){
     s.timingTemplate=normalizeCaptionCues(makeWordCues(srt),s.audio?.duration);s.parsedCaptions=s.timingTemplate.map(c=>({...c}));s.captionsAreTimed=false;timingSource='estimated inside imported subtitle phrases';
   }else if(lrc.length){
@@ -632,7 +679,7 @@ function show(title,body,btns=[['Close',closeModal,false]]){
   $('modalTitle').textContent=title;
   $('modalBody').innerHTML=body;
   $('modalButtons').innerHTML='';
-  
+
   const closeBtn=document.createElement('button');
   closeBtn.className='secondary'; closeBtn.textContent='Close';
   closeBtn.onclick=(e)=>{ e.stopPropagation(); closeModal(); };
@@ -643,7 +690,7 @@ function show(title,body,btns=[['Close',closeModal,false]]){
   btns.forEach(([l,fn,p])=>{
     if(l==='Close') return;
     const b=document.createElement('button');
-    b.className=p?'primary':'secondary'; b.textContent=l; 
+    b.className=p?'primary':'secondary'; b.textContent=l;
     b.onclick=(e)=>{ e.stopPropagation(); fn(); };
     rightGroup.append(b);
   });
@@ -661,7 +708,7 @@ function renderUI(){
     const v=document.createElement('video'); v.className='preview'; v.src=x.previewUrl||(x.previewUrl=URL.createObjectURL(x.file)); v.muted=true; v.setAttribute('playsinline',''); v.preload='metadata';
     r.innerHTML=`<div class="meta"><div class="name">${esc(x.file.name)}</div><div class="info">${size(x.file.size)} · ${fmt(x.duration)}</div></div>`;
     r.prepend(v);
-    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×';
     rm.onclick=(e)=>{ e.stopPropagation(); const [removed]=s.videos.splice(i,1); if(removed?.previewUrl)URL.revokeObjectURL(removed.previewUrl); renderUI(); };
     r.append(rm); $('videoFiles').append(r);
   });
@@ -670,7 +717,7 @@ function renderUI(){
   if(s.audio){
     const r=document.createElement('div'); r.className='file';
     r.innerHTML=`<div class="preview" style="display:grid;place-items:center">${s.audio.isExtracted?'🎞️':'♫'}</div><div class="meta"><div class="name">${esc(s.audio.file.name)} ${s.audio.isExtracted?'(Extracted)':''}</div><div class="info">${size(s.audio.file.size)} · ${fmt(s.audio.duration)}</div></div>`;
-    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×';
     rm.onclick=(e)=>{ e.stopPropagation(); s.audio=null; renderUI(); };
     r.append(rm); $('audioFiles').append(r);
   }
@@ -679,7 +726,7 @@ function renderUI(){
   if(s.lyricsFile){
     const r=document.createElement('div'); r.className='file';
     r.innerHTML=`<div class="preview" style="display:grid;place-items:center">TXT</div><div class="meta"><div class="name">${esc(s.lyricsFile.name)}</div><div class="info">${size(s.lyricsFile.size)}</div></div>`;
-    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×'; 
+    const rm=document.createElement('button'); rm.className='remove'; rm.textContent='×';
     rm.onclick=(e)=>{ e.stopPropagation(); s.lyricsFile=null; s.parsedCaptions=[];s.timingTemplate=null;s.captionsAreTimed=false; $('lyricsText').value=''; renderUI(); };
     r.append(rm); $('lyricsFiles').append(r);
   }
@@ -864,6 +911,9 @@ function renderTranscriptionDiagnostics(data){
       `Chunks: ${Number(data.chunkCount)||0}`,
       `Raw word cues: ${Number(data.rawWordCueCount)||0}`,
       `Processed word cues: ${Number(data.processedWordCueCount)||0}`,
+      `Whisper-timed cues: ${Number(data.whisperTimestampCueCount)||0}`,
+      `Estimated fallback cues: ${Number(data.estimatedTimestampCueCount)||0}`,
+      `Segment-retry cues (not word anchors): ${Number(data.segmentTimestampCueCount)||0}`,
       `Merge overlap words removed: ${Number(data.totalMergedOverlapWords)||0}`,
       `Total model inference: ${((Number(data.totalInferenceMs)||0)/1000).toFixed(1)} seconds`,
       `Raw output script: ${data.scriptEstimate||'Not reported'}`,
@@ -927,6 +977,7 @@ function makeTranscriptionWorker(){
 async function transcribeAudio(btn,label){
   if(transcriptionBusy)return;
   if(!s.audio){show('Audio required','Upload your naat, recitation or speech audio first.');return;}
+  if(!['urdu','hindi','arabic','english'].includes($('transcriptionLanguage').value)){show('Choose a recognition language','Select Urdu, Hindi, Arabic or English before starting transcription.');return;}
   if(!storageGet(CONSENT_KEY)){showFirstRun(()=>transcribeAudio(btn,label));return;}
   if(!window.Worker||!window.Blob||!URL.createObjectURL){show('Unsupported browser','This browser does not support the background transcription worker. Try an up-to-date Chrome or Edge browser.');return;}
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC){show('Audio decoding unavailable','This browser does not support Web Audio decoding.');return;}
@@ -968,7 +1019,8 @@ async function transcribeAudio(btn,label){
           rawText:String(m.rawText??m.text??''),selectedLanguage:m.selectedLanguage||$('transcriptionLanguage').value,
           model:m.model||'',duration:Number(m.duration)||0,chunkCount:Number(m.chunkCount)||0,
           scriptEstimate:m.scriptEstimate||'Not reported',rawWordCueCount:Number(m.rawWordCueCount)||0,
-          processedWordCueCount:captionWordCount(timed),romanize:!!m.romanize,
+          processedWordCueCount:captionWordCount(timed),whisperTimestampCueCount:Number(m.whisperTimestampCueCount)||0,
+          estimatedTimestampCueCount:Number(m.estimatedTimestampCueCount)||0,segmentTimestampCueCount:Number(m.segmentTimestampCueCount)||0,romanize:!!m.romanize,
           chunkDiagnostics:Array.isArray(m.chunkDiagnostics)?m.chunkDiagnostics:[],
           totalInferenceMs:Number(m.totalInferenceMs)||0,totalMergedOverlapWords:Number(m.totalMergedOverlapWords)||0,
           maxNewTokens:Number(m.maxNewTokens)||0,emptyDecodeChunks:Number(m.emptyDecodeChunks)||0,
@@ -1055,9 +1107,9 @@ $('useAiTranscriptBtn').onclick=()=>{
 $('alignLyricsBtn').onclick=()=>{
   try{
     const reference=$('lyricsText').value,result=alignLyricsToTimedWords(reference,s.lastAsrWordCues,s.audio?.duration);
-    setTranscriptText(reference,result.cues);s.captionsAreTimed=result.coverage>=.70;
-    const status=$('captionStatus');if(status)status.textContent=`Verified text preserved · ${result.matchedWords}/${result.totalWords} exact Whisper word anchors (${(result.coverage*100).toFixed(1)}%); remaining timings are estimated. Review every cue manually.`;
-    $('studioAiStatus').textContent=`Lyrics alignment pass: ${result.matchedWords}/${result.totalWords} exact word anchors; unmatched words have estimated timing. This is not a forced alignment.`;
+    setTranscriptText(reference,result.cues);s.captionsAreTimed=true;
+    const status=$('captionStatus');if(status)status.textContent=`Verified lyrics preserved · ${result.matchedWords}/${result.totalWords} Whisper-timed word anchors · ${result.estimatedWords} estimated · ${result.untimedWords} without usable timing · ${result.repeatedLineCount} repeated lyric lines detected. Estimated words are approximate; review in the timing editor.`;
+    $('studioAiStatus').textContent=`Lyrics preserved · ${result.matchedWords} Whisper word anchors · ${result.estimatedWords} estimated timings · ${result.untimedWords} untimed words · ${result.repeatedLineCount} repeated lines. This is not forced alignment.`;
     $('alignLyricsBtn').hidden=true;
   }catch(error){show('Could not align lyrics',esc(error.message||String(error)));}
 };
@@ -1113,7 +1165,7 @@ $('continueBtn').onclick=async()=>{
       </div>
     `;
 
-    
+
 
     show('Freeze Editorx Studio', html, [['Save Project', () => saveProject(), false], ['Export Video', () => executeExport(), true]]);
     $('studioLyricsText').value=$('lyricsText').value;
