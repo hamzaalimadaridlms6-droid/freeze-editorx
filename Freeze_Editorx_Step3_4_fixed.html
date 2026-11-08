@@ -325,21 +325,34 @@ const storageGet=key=>{if(volatileStorage.has(key))return volatileStorage.get(ke
 const storageSet=(key,value)=>{try{localStorage.setItem(key,value);volatileStorage.delete(key);return true}catch{volatileStorage.set(key,String(value));return false}};
 const storageRemove=key=>{try{localStorage.removeItem(key)}catch{}volatileStorage.delete(key)};
 
-let prefs={method:'auto',resolution:'1080p',fps:'30',bitrate:28,theme:'light',soundEffects:true,captionFont:'arabic',captionScale:0.073,captionPosition:0.52,captionColor:'#ffffff',captionHighlight:true,captionHighlightColor:'#ffd166',captionAnimation:'fade',captionOutline:true,captionShadow:true,captionSpacing:0};
-try{const savedPrefs=JSON.parse(storageGet(PREF_KEY)||'{}');prefs={...prefs,...savedPrefs};if(!savedPrefs.qualityProfileVersion){prefs.qualityProfileVersion=3;storageSet(PREF_KEY,JSON.stringify(prefs));}}catch{}
+let prefs={method:'auto',resolution:'1080p',fps:'30',bitrate:28,theme:'light',soundEffects:true,captionFont:'arabic',captionFontWeight:900,captionFontStyle:'normal',captionScale:0.073,captionMinScale:0.032,captionMaxWidth:0.90,captionPosition:0.52,captionHorizontalAlign:'center',captionHorizontalOffset:0,captionColor:'#ffffff',captionHighlight:true,captionHighlightColor:'#ffd166',captionAnimation:'fade',captionFadeDuration:0.12,captionPopDuration:0.16,captionOutline:true,captionShadow:true,captionSpacing:0,captionBackground:false,captionBackgroundColor:'#000000',captionBackgroundOpacity:0.58,captionBackgroundPadding:12,captionBackgroundRadius:14};
+try{const savedPrefs=JSON.parse(storageGet(PREF_KEY)||'{}');prefs={...prefs,...savedPrefs};if(!savedPrefs.qualityProfileVersion){prefs.qualityProfileVersion=4;storageSet(PREF_KEY,JSON.stringify(prefs));}}catch{}
 if(!['auto','recording','render'].includes(prefs.method))prefs.method='auto';
 if(!['720p','1080p'].includes(prefs.resolution))prefs.resolution='1080p';
 if(!['30','60'].includes(String(prefs.fps)))prefs.fps='30';
 prefs.bitrate=Math.max(4,Math.min(40,Number(prefs.bitrate)||28));
 if(!['light','dark'].includes(prefs.theme))prefs.theme='light';
 if(!['arabic','sans','serif'].includes(prefs.captionFont))prefs.captionFont='arabic';
+if(![400,500,600,700,800,900].includes(Number(prefs.captionFontWeight)))prefs.captionFontWeight=900;
+if(!['normal','italic'].includes(prefs.captionFontStyle))prefs.captionFontStyle='normal';
 prefs.captionScale=Math.max(.038,Math.min(.095,Number(prefs.captionScale)||.073));
+prefs.captionMinScale=Math.max(.02,Math.min(.06,Number(prefs.captionMinScale)||.032));
+prefs.captionMaxWidth=Math.max(.6,Math.min(1,Number(prefs.captionMaxWidth)||.9));
 prefs.captionPosition=Math.max(.16,Math.min(.84,Number(prefs.captionPosition)||.52));
+if(!['left','center','right'].includes(prefs.captionHorizontalAlign))prefs.captionHorizontalAlign='center';
+prefs.captionHorizontalOffset=Math.max(-.25,Math.min(.25,Number(prefs.captionHorizontalOffset)||0));
 if(!/^#[0-9a-f]{6}$/i.test(String(prefs.captionColor)))prefs.captionColor='#ffffff';
 if(!/^#[0-9a-f]{6}$/i.test(String(prefs.captionHighlightColor)))prefs.captionHighlightColor='#ffd166';
 if(!['none','fade','pop'].includes(prefs.captionAnimation))prefs.captionAnimation='fade';
+prefs.captionFadeDuration=Math.max(.04,Math.min(.8,Number(prefs.captionFadeDuration)||.12));
+prefs.captionPopDuration=Math.max(.04,Math.min(.8,Number(prefs.captionPopDuration)||.16));
 prefs.captionSpacing=Math.max(0,Math.min(28,Number(prefs.captionSpacing)||0));
+if(!/^#[0-9a-f]{6}$/i.test(String(prefs.captionBackgroundColor)))prefs.captionBackgroundColor='#000000';
+prefs.captionBackgroundOpacity=Math.max(0,Math.min(1,Number(prefs.captionBackgroundOpacity)||.58));
+prefs.captionBackgroundPadding=Math.max(0,Math.min(40,Number(prefs.captionBackgroundPadding)||12));
+prefs.captionBackgroundRadius=Math.max(0,Math.min(32,Number(prefs.captionBackgroundRadius)||14));
 prefs.captionHighlight=!!prefs.captionHighlight;prefs.captionOutline=!!prefs.captionOutline;prefs.captionShadow=!!prefs.captionShadow;
+prefs.captionBackground=!!prefs.captionBackground;
 
 function deviceProfile(){
   const memory=Number(navigator.deviceMemory)||4;
@@ -731,13 +744,18 @@ function renderUI(){
     r.append(rm); $('lyricsFiles').append(r);
   }
 
-  const eligible=s.videos.length>=8&&s.audio&&s.audio.duration>=60&&s.videos.length<=12;
+  const eligible=s.videos.length>=8&&s.videos.length<=12&&!!s.audio&&s.audio.duration>=60;
   $('smartToggle').disabled=!eligible;
   if(!eligible) s.smart=false;
   $('smartToggle').checked=s.smart;
-  $('smartHint').textContent=eligible?'On: starts with Rank 1, the loudest measured segment. This is not AI understanding.':'Unlocks with 8–12 videos and audio ≥ 1 min.';
-  $('status').textContent=s.videos.length<2?`Add ${2-s.videos.length} more video(s) to continue.`:'Ready to create three ranked previews.';
-  $('continueBtn').disabled=s.videos.length<2;
+  const smartReasons=[];
+  if(s.videos.length<8)smartReasons.push(`add ${8-s.videos.length} video(s)`);
+  if(s.videos.length>12)smartReasons.push('reduce videos to 12 or fewer');
+  if(!s.audio)smartReasons.push('upload audio');
+  else if(s.audio.duration<60)smartReasons.push(`audio is ${Math.ceil(60-s.audio.duration)}s short of 1 min`);
+  $('smartHint').textContent=eligible?(s.smart?'Enabled: opens on the passage with the highest measured loudness.':'Available: starts on the middle-ranked passage.'):`Auto-select strongest passage unavailable: ${smartReasons.join('; ')}. Uses audio loudness only.`;
+  $('status').textContent=s.videos.length<2?`Add ${2-s.videos.length} more video(s) to continue.`:!s.audio?'Upload an audio file to continue.':'Ready to create three ranked previews.';
+  $('continueBtn').disabled=s.videos.length<2||!s.audio;
 
 }
 
@@ -824,7 +842,7 @@ async function analyzeAudioLoudness(audioFile){
     if(top.length<3){
       // Fallback: divide the track into three disjoint time ranges.
       const span=dur/3;
-      return [0,1,2].map(i=>{const start=i*span,end=i===2?dur:(i+1)*span;const rel=windows.filter(w=>w.time>=start&&w.time<end);const rms=rel.length?rel.reduce((a,b)=>a+b.rms,0)/rel.length:0;return {start,end,duration:end-start,rms,strength:`Relative loudness ${(rms*100).toFixed(1)}%`};}).sort((a,b)=>b.rms-a.rms);
+      return [0,1,2].map(i=>{const start=i*span,end=i===2?dur:(i+1)*span;const rel=windows.filter(w=>w.time>=start&&w.time<end);const rms=rel.length?rel.reduce((a,b)=>a+b.rms,0)/rel.length:0;return {start,end,duration:end-start,rms,fallback:'equal-thirds',strength:`Equal-third fallback · relative loudness ${(rms*100).toFixed(1)}%`};}).sort((a,b)=>b.rms-a.rms);
     }
     return top;
   } finally {if(ctx.state!=='closed')await ctx.close();}
@@ -866,21 +884,21 @@ function drawFrame(ctx,w,h,vEls,vIdxRef,elapsed,duration,lyrics,captions=[],sour
   ctx.save();ctx.globalAlpha=Math.min(fadeIn,fadeOut);ctx.textBaseline='middle';ctx.direction=rtl?'rtl':'ltr';
   let font=Math.round(w*prefs.captionScale),spacing=Number(prefs.captionSpacing)||0;
   const family=families[prefs.captionFont]||families.arabic;
-  const maxWidth=w*.90,minFont=Math.round(w*.032);
-  const measure=()=>words.reduce((sum,word)=>sum+ctx.measureText(word).width,0)+spacing*Math.max(0,words.length-1);
-  ctx.font=`900 ${font}px ${family}`;while(measure()>maxWidth&&font>minFont){font-=1;ctx.font=`900 ${font}px ${family}`;}
-  const totalWidth=measure(),y=h*prefs.captionPosition;
-  if(animation==='pop'){const progress=Math.min(1,Math.max(0,(sourceTime-groupStartTime)/.16)),scale=.92+.08*progress;ctx.translate(w/2,y);ctx.scale(scale,scale);ctx.translate(-w/2,-y);}
-  ctx.textAlign=rtl?'right':'left';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,w*.006);
+  const margin=w*.025,maxWidth=Math.max(w*.5,Math.min(w*.98,w*prefs.captionMaxWidth)),minFont=Math.round(w*prefs.captionMinScale);
+  const setFont=()=>{ctx.font=`${prefs.captionFontStyle||'normal'} ${Number(prefs.captionFontWeight)||900} ${font}px ${family}`;};
+  const lineWidth=indices=>indices.reduce((sum,index)=>sum+ctx.measureText(words[index]).width,0)+spacing*Math.max(0,indices.length-1);
+  const makeLines=()=>{const lines=[];let line=[];for(let i=0;i<words.length;i++){if(line.length&&lineWidth([...line,i])>maxWidth){lines.push(line);line=[i];}else line.push(i);}if(line.length)lines.push(line);return lines;};
+  setFont();let lines=makeLines();while(lines.some(line=>lineWidth(line)>maxWidth)&&font>minFont){font--;setFont();lines=makeLines();}
+  const widths=lines.map(lineWidth),widest=Math.max(...widths),lineHeight=font*1.22,totalHeight=lines.length*lineHeight;
+  const pad=prefs.captionBackground?Number(prefs.captionBackgroundPadding)||0:0;
+  const y=Math.max(totalHeight/2+pad+margin,Math.min(h-totalHeight/2-pad-margin,h*prefs.captionPosition));
+  const centerX=w*(.5+Number(prefs.captionHorizontalOffset||0));
+  const lineBoxes=lines.map((line,i)=>{let left=prefs.captionHorizontalAlign==='left'?margin:prefs.captionHorizontalAlign==='right'?w-margin-widths[i]:centerX-widths[i]/2;left+=Number(prefs.captionHorizontalOffset||0)*w;if(prefs.captionHorizontalAlign==='center')left=centerX-widths[i]/2;left=Math.max(margin,Math.min(w-margin-widths[i],left));return {left,width:widths[i],words:line};});
+  if(animation==='pop'){const progress=Math.min(1,Math.max(0,(sourceTime-groupStartTime)/popDuration)),scale=.92+.08*progress;ctx.translate(centerX,y);ctx.scale(scale,scale);ctx.translate(-centerX,-y);}
+  ctx.textAlign='left';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,w*.006);
   ctx.strokeStyle='rgba(0,0,0,.88)';ctx.shadowColor=prefs.captionShadow?'rgba(0,0,0,.72)':'transparent';ctx.shadowBlur=prefs.captionShadow?Math.max(3,w*.012):0;
-  let cursor=rtl?w/2+totalWidth/2:w/2-totalWidth/2;
-  words.forEach((word,index)=>{
-    const width=ctx.measureText(word).width,x=cursor;
-    if(prefs.captionOutline)ctx.strokeText(word,x,y);
-    ctx.fillStyle=prefs.captionHighlight&&index===activeIndex?(prefs.captionHighlightColor||'#ffd166'):(prefs.captionColor||'#ffffff');
-    ctx.fillText(word,x,y);
-    cursor+=rtl?-(width+spacing):(width+spacing);
-  });
+  if(prefs.captionBackground){const x=Math.min(...lineBoxes.map(box=>box.left))-pad,boxY=y-totalHeight/2-pad,boxW=Math.max(...lineBoxes.map(box=>box.left+box.width))-Math.min(...lineBoxes.map(box=>box.left))+pad*2,boxH=totalHeight+pad*2,opacity=Number(prefs.captionBackgroundOpacity)||.58,color=prefs.captionBackgroundColor||'#000000';ctx.save();ctx.shadowBlur=0;ctx.fillStyle=`rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},${opacity})`;if(typeof ctx.roundRect==='function'){ctx.beginPath();ctx.roundRect(x,boxY,boxW,boxH,Number(prefs.captionBackgroundRadius)||0);ctx.fill();}else ctx.fillRect(x,boxY,boxW,boxH);ctx.restore();}
+  lineBoxes.forEach((box,lineIndex)=>{const lineY=y+(lineIndex-(lines.length-1)/2)*lineHeight;let cursor=rtl?box.left+box.width:box.left;for(const index of box.words){const word=words[index],wordWidth=ctx.measureText(word).width,x=rtl?cursor-wordWidth:cursor;if(prefs.captionOutline)ctx.strokeText(word,x,lineY);ctx.fillStyle=prefs.captionHighlight&&index===activeIndex?(prefs.captionHighlightColor||'#ffd166'):(prefs.captionColor||'#ffffff');ctx.fillText(word,x,lineY);cursor+=rtl?-(wordWidth+spacing):(wordWidth+spacing);}});
   ctx.restore();
 }
 
@@ -1134,7 +1152,7 @@ $('continueBtn').onclick=async()=>{
 
     const html=`
       <p><b>Three separate ranked previews created</b></p>
-      <div class="notice">Each rank has a different, non-overlapping audio segment and its own exclusive stock-video group. With 6+ uploads, every rank can rotate through multiple clips. Ranking uses audio loudness—not semantic AI understanding. Select a rank to preview it.</div>
+      <div class="notice">Each rank uses a disjoint audio segment chosen by relative RMS loudness (or equal thirds if fewer than three disjoint peaks qualify). Video clips are grouped round-robin; with 2 uploads, one clip is reused for the third rank. Video scenes and meaning are not analyzed.</div>
       <table class="passages-table"><thead><tr><th>Rank</th><th>Timestamp</th><th>Duration</th><th>Intensity Ranking</th></tr></thead><tbody>${rows}</tbody></table>
       <h4 style="margin:14px 0 6px;">Transcript / Lyrics</h4>
       <textarea id="studioLyricsText" class="transcript" style="min-height:100px;width:100%;" placeholder="Paste or edit lyrics here. Timed SRT/VTT/LRC captions keep their timestamps."></textarea>
@@ -1514,23 +1532,32 @@ document.querySelectorAll('.menu button').forEach(b=>b.onclick=e=>{
       <label>Font:<br><select id="setCaptionFont" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
         <option value="arabic" ${prefs.captionFont==='arabic'?'selected':''}>Arabic / Urdu display</option><option value="sans" ${prefs.captionFont==='sans'?'selected':''}>Sans serif</option><option value="serif" ${prefs.captionFont==='serif'?'selected':''}>Serif</option>
       </select></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Font weight<br><select id="setCaptionWeight" style="width:100%;padding:8px"><option value="400" ${prefs.captionFontWeight===400?'selected':''}>Regular</option><option value="500" ${prefs.captionFontWeight===500?'selected':''}>Medium</option><option value="600" ${prefs.captionFontWeight===600?'selected':''}>Semi-bold</option><option value="700" ${prefs.captionFontWeight===700?'selected':''}>Bold</option><option value="800" ${prefs.captionFontWeight===800?'selected':''}>Extra-bold</option><option value="900" ${prefs.captionFontWeight===900?'selected':''}>Black</option></select></label><label>Font style<br><select id="setCaptionStyle" style="width:100%;padding:8px"><option value="normal" ${prefs.captionFontStyle==='normal'?'selected':''}>Normal</option><option value="italic" ${prefs.captionFontStyle==='italic'?'selected':''}>Italic</option></select></label></div>
       <label>Text size (% of video width): <span id="captionSizeValue">${Math.round(prefs.captionScale*100)}%</span><br><input id="setCaptionScale" type="range" min="4" max="9.5" step="0.1" value="${prefs.captionScale*100}" style="width:100%;margin:6px 0 12px"></label>
+      <label>Minimum text size (%): <span id="captionMinScaleValue">${Math.round(prefs.captionMinScale*100)}%</span><br><input id="setCaptionMinScale" type="range" min="2" max="6" step="0.1" value="${prefs.captionMinScale*100}" style="width:100%;margin:6px 0 12px"></label>
+      <label>Maximum text width (%): <span id="captionMaxWidthValue">${Math.round(prefs.captionMaxWidth*100)}%</span><br><input id="setCaptionMaxWidth" type="range" min="60" max="100" step="1" value="${prefs.captionMaxWidth*100}" style="width:100%;margin:6px 0 12px"></label>
       <label>Vertical position:<br><select id="setCaptionPosition" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
         <option value="0.24" ${Math.abs(prefs.captionPosition-.24)<.02?'selected':''}>Upper</option><option value="0.52" ${Math.abs(prefs.captionPosition-.52)<.02?'selected':''}>Center</option><option value="0.78" ${Math.abs(prefs.captionPosition-.78)<.02?'selected':''}>Lower</option>
       </select></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Horizontal alignment<br><select id="setCaptionAlign" style="width:100%;padding:8px"><option value="left" ${prefs.captionHorizontalAlign==='left'?'selected':''}>Left</option><option value="center" ${prefs.captionHorizontalAlign==='center'?'selected':''}>Center</option><option value="right" ${prefs.captionHorizontalAlign==='right'?'selected':''}>Right</option></select></label><label>Horizontal offset (%)<br><input id="setCaptionX" type="range" min="-25" max="25" step="1" value="${prefs.captionHorizontalOffset*100}" style="width:100%"></label></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Text colour<br><input id="setCaptionColor" type="color" value="${prefs.captionColor}" style="width:100%;height:40px"></label><label>Active word colour<br><input id="setHighlightColor" type="color" value="${prefs.captionHighlightColor}" style="width:100%;height:40px"></label></div>
       <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="setCaptionHighlight" type="checkbox" ${prefs.captionHighlight?'checked':''}> Highlight the current word</label>
       <label>Text animation:<br><select id="setCaptionAnimation" style="width:100%;padding:8px;margin:6px 0 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;">
         <option value="none" ${prefs.captionAnimation==='none'?'selected':''}>None</option><option value="fade" ${prefs.captionAnimation==='fade'?'selected':''}>Fade</option><option value="pop" ${prefs.captionAnimation==='pop'?'selected':''}>Soft pop</option>
       </select></label>
       <label>Word spacing (px): <span id="captionSpacingValue">${prefs.captionSpacing}</span><br><input id="setCaptionSpacing" type="range" min="0" max="28" step="1" value="${prefs.captionSpacing}" style="width:100%;margin:6px 0 12px"></label>
+      <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="setCaptionBackground" type="checkbox" ${prefs.captionBackground?'checked':''}> Background pill</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Background color<br><input id="setCaptionBackgroundColor" type="color" value="${prefs.captionBackgroundColor}" style="width:100%;height:40px"></label><label>Opacity<br><input id="setCaptionBackgroundOpacity" type="range" min="0" max="1" step="0.05" value="${prefs.captionBackgroundOpacity}" style="width:100%"></label></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label>Background padding (px)<br><input id="setCaptionBackgroundPadding" type="range" min="0" max="40" step="1" value="${prefs.captionBackgroundPadding}" style="width:100%"></label><label>Corner radius (px)<br><input id="setCaptionBackgroundRadius" type="range" min="0" max="32" step="1" value="${prefs.captionBackgroundRadius}" style="width:100%"></label></div>
+      <label>Fade duration (seconds)<br><input id="setCaptionFadeDuration" type="range" min="0.04" max="0.8" step="0.02" value="${prefs.captionFadeDuration}" style="width:100%"></label>
+      <label>Pop duration (seconds)<br><input id="setCaptionPopDuration" type="range" min="0.04" max="0.8" step="0.02" value="${prefs.captionPopDuration}" style="width:100%"></label>
       <div style="display:flex;gap:18px;flex-wrap:wrap"><label><input id="setCaptionOutline" type="checkbox" ${prefs.captionOutline?'checked':''}> Outline</label><label><input id="setCaptionShadow" type="checkbox" ${prefs.captionShadow?'checked':''}> Shadow</label></div>
       <p id="settingsSaveStatus" class="hint" role="status" aria-live="polite">Changes save automatically on this device.</p>
       <button class="primary" id="settingsDoneBtn" type="button">Done</button>
     `, []);
     // Bind controls from inside this closure. Inline HTML handlers cannot access
     // prefs/$ because both are private to this IIFE; that was why Save Settings failed.
-    const settingsIds=['setMethod','setFps','setRes','setBitrate','setTheme','setCaptionFont','setCaptionScale','setCaptionPosition','setCaptionColor','setHighlightColor','setCaptionHighlight','setCaptionAnimation','setCaptionSpacing','setCaptionOutline','setCaptionShadow'];
+    const settingsIds=['setMethod','setFps','setRes','setBitrate','setTheme','setCaptionFont','setCaptionWeight','setCaptionStyle','setCaptionScale','setCaptionMinScale','setCaptionMaxWidth','setCaptionPosition','setCaptionAlign','setCaptionX','setCaptionColor','setHighlightColor','setCaptionHighlight','setCaptionAnimation','setCaptionSpacing','setCaptionBackground','setCaptionBackgroundColor','setCaptionBackgroundOpacity','setCaptionBackgroundPadding','setCaptionBackgroundRadius','setCaptionFadeDuration','setCaptionPopDuration','setCaptionOutline','setCaptionShadow'];
     const saveSettingsNow=()=>{
       const method=$('setMethod'),fps=$('setFps'),res=$('setRes'),bitrate=$('setBitrate'),theme=$('setTheme');
       if(!method||!fps||!res||!bitrate||!theme)return false;
@@ -1546,16 +1573,29 @@ document.querySelectorAll('.menu button').forEach(b=>b.onclick=e=>{
       prefs.bitrate=Math.round(rawBitrate);
       prefs.theme=theme.value==='dark'?'dark':'light';
       prefs.captionFont=$('setCaptionFont').value;
+      prefs.captionFontWeight=Number($('setCaptionWeight').value);
+      prefs.captionFontStyle=$('setCaptionStyle').value;
       prefs.captionScale=Number($('setCaptionScale').value)/100;
+      prefs.captionMinScale=Number($('setCaptionMinScale').value)/100;
+      prefs.captionMaxWidth=Number($('setCaptionMaxWidth').value)/100;
       prefs.captionPosition=Number($('setCaptionPosition').value);
+      prefs.captionHorizontalAlign=$('setCaptionAlign').value;
+      prefs.captionHorizontalOffset=Number($('setCaptionX').value)/100;
       prefs.captionColor=$('setCaptionColor').value;
       prefs.captionHighlightColor=$('setHighlightColor').value;
       prefs.captionHighlight=$('setCaptionHighlight').checked;
       prefs.captionAnimation=$('setCaptionAnimation').value;
       prefs.captionSpacing=Number($('setCaptionSpacing').value);
+      prefs.captionBackground=$('setCaptionBackground').checked;
+      prefs.captionBackgroundColor=$('setCaptionBackgroundColor').value;
+      prefs.captionBackgroundOpacity=Number($('setCaptionBackgroundOpacity').value);
+      prefs.captionBackgroundPadding=Number($('setCaptionBackgroundPadding').value);
+      prefs.captionBackgroundRadius=Number($('setCaptionBackgroundRadius').value);
+      prefs.captionFadeDuration=Number($('setCaptionFadeDuration').value);
+      prefs.captionPopDuration=Number($('setCaptionPopDuration').value);
       prefs.captionOutline=$('setCaptionOutline').checked;
       prefs.captionShadow=$('setCaptionShadow').checked;
-      prefs.qualityProfileVersion=3;
+      prefs.qualityProfileVersion=4;
       if(!storageSet(PREF_KEY,JSON.stringify(prefs))){
         const status=$('settingsSaveStatus');if(status)status.textContent='Kept for this tab session; browser storage is unavailable or full.';
       }else{
@@ -1568,6 +1608,8 @@ document.querySelectorAll('.menu button').forEach(b=>b.onclick=e=>{
     settingsIds.forEach(id=>{const el=$(id);if(el){el.addEventListener('change',saveSettingsNow);el.addEventListener('input',saveSettingsNow);}});
     $('setCaptionScale').addEventListener('input',()=>{$('captionSizeValue').textContent=`${Number($('setCaptionScale').value).toFixed(1)}%`;});
     $('setCaptionSpacing').addEventListener('input',()=>{$('captionSpacingValue').textContent=$('setCaptionSpacing').value;});
+    $('setCaptionMinScale').addEventListener('input',()=>{$('captionMinScaleValue').textContent=`${Number($('setCaptionMinScale').value).toFixed(1)}%`;});
+    $('setCaptionMaxWidth').addEventListener('input',()=>{$('captionMaxWidthValue').textContent=`${$('setCaptionMaxWidth').value}%`;});
     const done=$('settingsDoneBtn');if(done)done.addEventListener('click',()=>{if(saveSettingsNow())closeModal();});
   } else if(p==='privacy') {
     show('Privacy Policy', `<p><b>Effective date: 1 November 2026</b></p>
