@@ -493,7 +493,7 @@ function compareTranscriptWords(referenceText,candidateText){
   for(let i=1;i<=ref.length;i++){const current=new Uint32Array(cand.length+1);current[0]=i;for(let j=1;j<=cand.length;j++)current[j]=Math.min(previous[j]+1,current[j-1]+1,previous[j-1]+(ref[i-1]===cand[j-1]?0:1));previous=current;}
   return {referenceWords:ref.length,candidateWords:cand.length,edits:previous[cand.length],wer:previous[cand.length]/ref.length};
 }
-function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
+async function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
   // Keep punctuation attached to the verified lyric token, while retaining
   // source line boundaries as soft evidence for repeated stanzas/choruses.
   const ref=[];String(referenceText||'').replace(/^\uFEFF/,'').split(/\r?\n/u).forEach((line,lineIndex)=>{
@@ -519,6 +519,7 @@ function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
   const cols=observed.length+1,rows=ref.length+1,cost=new Float64Array(rows*cols),back=new Uint8Array(rows*cols);
   for(let i=1;i<rows;i++){cost[i*cols]=i*10;back[i*cols]=2;}
   for(let j=1;j<cols;j++){cost[j]=j*10;back[j]=3;}
+  let cellsSinceYield=0;
   for(let i=1;i<rows;i++)for(let j=1;j<cols;j++){
     const r=ref[i-1],o=observed[j-1],prev=observed[j-2],pause=prev?o.start-prev.end:0;
     const exact=!!r.key&&r.key===o.key;
@@ -526,6 +527,7 @@ function alignLyricsToTimedWords(referenceText,asrWordCues,duration){
     const boundaryPenalty=lineBoundary&&pause<0.22?2:(!lineBoundary&&pause>0.85?1:0);
     const diag=cost[(i-1)*cols+j-1]+(exact?boundaryPenalty:30),del=cost[(i-1)*cols+j]+10,ins=cost[i*cols+j-1]+10,k=i*cols+j;
     if(diag<=del&&diag<=ins){cost[k]=diag;back[k]=1;}else if(del<=ins){cost[k]=del;back[k]=2;}else{cost[k]=ins;back[k]=3;}
+    if(++cellsSinceYield>=25000){await new Promise(resolve=>setTimeout(resolve,0));cellsSinceYield=0;}
   }
   const anchor=new Array(ref.length).fill(null);let i=ref.length,j=observed.length,matched=0;
   while(i>0||j>0){const op=back[i*cols+j];if(i>0&&j>0&&op===1){if(ref[i-1].key&&ref[i-1].key===observed[j-1].key&&observed[j-1].reliable){anchor[i-1]=observed[j-1];matched++;}i--;j--;}else if(i>0&&(j===0||op===2))i--;else if(j>0)j--;else break;}
@@ -822,6 +824,7 @@ async function analyzeAudioLoudness(audioFile){
       let sum=0,count=0;const stride=Math.max(1,Math.floor(sr/8000));
       for(const channel of channels)for(let j=0;j<winSamples;j+=stride){const v=channel[i+j];sum+=v*v;count++;}
       windows.push({time:i/sr,rms:Math.sqrt(sum/Math.max(1,count))});
+      if(windows.length%200===0)await new Promise(resolve=>setTimeout(resolve,0));
     }
     const passageLength=Math.min(15,Math.max(1,dur/3));
     const hopSeconds=Math.max(.5,Math.min(2,passageLength/5));
@@ -830,6 +833,7 @@ async function analyzeAudioLoudness(audioFile){
       let sum=0,count=0;
       for(const w of windows){if(w.time>=start&&w.time<start+passageLength){sum+=w.rms;count++;}}
       if(count)passages.push({start,end:Math.min(dur,start+passageLength),duration:Math.min(passageLength,dur-start),rms:sum/count});
+      if(passages.length&&passages.length%100===0)await new Promise(resolve=>setTimeout(resolve,0));
     }
     passages.sort((a,b)=>b.rms-a.rms);
     const top=[];
@@ -1122,14 +1126,16 @@ $('useAiTranscriptBtn').onclick=()=>{
   $('useAiTranscriptBtn').hidden=true;$('alignLyricsBtn').hidden=true;
   $('aiStatus').textContent='AI transcript applied. Review every word and its model timestamps.';
 };
-$('alignLyricsBtn').onclick=()=>{
+$('alignLyricsBtn').onclick=async()=>{
+  const button=$('alignLyricsBtn'),status=$('studioAiStatus');if(button)button.disabled=true;if(status)status.textContent='Aligning verified lyrics without blocking playback…';
   try{
-    const reference=$('lyricsText').value,result=alignLyricsToTimedWords(reference,s.lastAsrWordCues,s.audio?.duration);
+    const reference=$('lyricsText').value,result=await alignLyricsToTimedWords(reference,s.lastAsrWordCues,s.audio?.duration);
     setTranscriptText(reference,result.cues);s.captionsAreTimed=true;
     const status=$('captionStatus');if(status)status.textContent=`Verified lyrics preserved · ${result.matchedWords}/${result.totalWords} Whisper-timed word anchors · ${result.estimatedWords} estimated · ${result.untimedWords} without usable timing · ${result.repeatedLineCount} repeated lyric lines detected. Estimated words are approximate; review in the timing editor.`;
     $('studioAiStatus').textContent=`Lyrics preserved · ${result.matchedWords} Whisper word anchors · ${result.estimatedWords} estimated timings · ${result.untimedWords} untimed words · ${result.repeatedLineCount} repeated lines. This is not forced alignment.`;
     $('alignLyricsBtn').hidden=true;
   }catch(error){show('Could not align lyrics',esc(error.message||String(error)));}
+  finally{if(button&&!button.hidden)button.disabled=false;}
 };
 
 $('continueBtn').onclick=async()=>{
@@ -1222,8 +1228,10 @@ function pausePreviewForInactivePage(){
   const status=$('renderStatus');if(status)status.textContent='Paused because the tab is inactive. Press Play to resume.';
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pausePreviewForInactivePage();});
-window.addEventListener('pagehide',()=>stopPreview('Page closed'));
-window.addEventListener('beforeunload',()=>stopPreview('Page closed'));
+window.addEventListener('pagehide',event=>{
+  stopPreview('Page closed');
+  if(!event.persisted)s.videos.forEach(item=>{if(item.previewUrl){URL.revokeObjectURL(item.previewUrl);item.previewUrl=null;}});
+});
 function initStudioPreview(rankIdx=s.activeRank){
   s.activeRank=Math.max(0,Math.min(2,Number(rankIdx)||0));
   if(s.rankCandidates[s.activeRank])s.selectedPassage={...s.rankCandidates[s.activeRank],rankIdx:s.activeRank};
